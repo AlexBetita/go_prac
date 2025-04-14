@@ -3,8 +3,10 @@ package oauth
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
+	"os"
 
 	"github.com/AlexBetita/go_prac/internal/config"
 	"github.com/AlexBetita/go_prac/internal/models"
@@ -87,6 +89,6 @@ func (h *GoogleHandler) Callback(w http.ResponseWriter, r *http.Request) {
         Secure:   true,
         SameSite: http.SameSiteLaxMode,
     })
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(map[string]string{"token": jwtToken})
+	redirectURL := fmt.Sprintf("%s/login?jwt=%s", os.Getenv("FRONTEND_URL"), jwtToken)
+	http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
 }
