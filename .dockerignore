@@ -1,0 +1,12 @@
+# Binaries
+auth-server
+
+# Go stuff
+*.log
+*.test
+vendor/
+
+# IDE and OS junk
+.vscode
+.DS_Store
+.env
