@@ -10,6 +10,7 @@ type Config struct {
     GoogleClientID     string
     GoogleClientSecret string
     GoogleRedirectURL  string
+	OpenAIKey string
 }
 
 func New() *Config {
@@ -21,6 +22,7 @@ func New() *Config {
         GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
         GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
         GoogleRedirectURL:  os.Getenv("GOOGLE_REDIRECT_URL"),
+		OpenAIKey: os.Getenv("OPENAI_API_KEY"),
     }
 }
 
