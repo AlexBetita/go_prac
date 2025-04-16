@@ -15,11 +15,12 @@ import (
 
 type BotService struct {
 	repo   repositories.PostRepository
-	client *openai.Client
+	oaClient *openai.Client
 }
 
-func NewBotService(repo repositories.PostRepository, apiKey string) *BotService {
-	return &BotService{repo: repo, client: openai.NewClient(apiKey)}
+func NewBotService(repo repositories.PostRepository, 
+	oaClient *openai.Client) *BotService {
+	return &BotService{repo: repo, oaClient: oaClient}
 }
 
 func (s *BotService) GenerateRequest(
@@ -36,6 +37,7 @@ func (s *BotService) GenerateRequest(
 	ctx = context.WithValue(ctx, bot.CtxUserID, userID)
 	ctx = context.WithValue(ctx, bot.CtxInput, message)
 	ctx = context.WithValue(ctx, bot.CtxRepo, s.repo)
+	ctx = context.WithValue(ctx, bot.CtxClient, s.oaClient)
 
 	tools := make([]openai.Tool, 0, len(bot.Registry))
 	for _, spec := range bot.Registry {
@@ -55,7 +57,7 @@ func (s *BotService) GenerateRequest(
 		ToolChoice: "auto",
 	}
 
-	resp, err := s.client.CreateChatCompletion(ctx, req)
+	resp, err := s.oaClient.CreateChatCompletion(ctx, req)
 	if err != nil {
 		return nil, err
 	}

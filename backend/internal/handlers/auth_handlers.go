@@ -54,15 +54,9 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 
 func (h *AuthHandler) Profile(w http.ResponseWriter, r *http.Request) {
-    userID, ok := r.Context().Value(middlewares.UserIDKey()).(string)
-    if !ok || userID == "" {
-        http.Error(w, "Unauthorized", http.StatusUnauthorized)
-        return
-    }
-
-    user, err := h.service.GetUserByID(r.Context(), userID)
-    if err != nil {
-        http.Error(w, "User not found", http.StatusNotFound)
+    user := middlewares.User(r.Context())
+    if user == nil {
+        http.Error(w, "unauthorized", http.StatusUnauthorized)
         return
     }
 
