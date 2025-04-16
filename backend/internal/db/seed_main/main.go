@@ -8,10 +8,15 @@ import (
 	"github.com/AlexBetita/go_prac/internal/config"
 	"github.com/AlexBetita/go_prac/internal/db"
 	"github.com/AlexBetita/go_prac/internal/db/seed"
+	"github.com/joho/godotenv"
 	openai "github.com/sashabaranov/go-openai"
 )
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("No .env file found, relying on environment variables")
+	}
 	ctx := context.Background()
 	cfg := config.New()
 
