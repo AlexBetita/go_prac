@@ -36,6 +36,7 @@ func (s *BotService) GenerateRequest(
 	ctx = context.WithValue(ctx, bot.CtxUserID, userID)
 	ctx = context.WithValue(ctx, bot.CtxInput, message)
 	ctx = context.WithValue(ctx, bot.CtxRepo, s.repo)
+	ctx = context.WithValue(ctx, bot.CtxClient, s.client)
 
 	tools := make([]openai.Tool, 0, len(bot.Registry))
 	for _, spec := range bot.Registry {

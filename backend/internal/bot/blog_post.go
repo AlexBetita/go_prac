@@ -3,10 +3,14 @@ package bot
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"math/rand"
+	"regexp"
+	"strings"
 	"time"
 
-	openai "github.com/sashabaranov/go-openai"
 	"github.com/AlexBetita/go_prac/internal/models"
+	openai "github.com/sashabaranov/go-openai"
 )
 
 type BlogPostPayload struct {
@@ -16,6 +20,7 @@ type BlogPostPayload struct {
 	Keywords    []string `json:"keywords"`
 	Slug    string   `json:"slug"`
 	Summary string   `json:"summary"`
+	Will_Embed bool  `json: "will_embed"`
 }
 
 var blogPostDef = openai.FunctionDefinition{
@@ -51,11 +56,16 @@ var blogPostDef = openai.FunctionDefinition{
 				"type": "string",
 				"description": "Create an SEO friendly slug",
 			},
+			"will_embed": map[string]any{
+				"type": "boolean",
+				"description": "True if user request to embed otherwise false",
+				"default": false,
+			},
 		},
 		"required": 
 			[]string{"content", "topic", 
 			"tags", "summary", "keywords",
-		"slug"},
+		"slug", "will_embed"},
 	},
 }
 
@@ -68,14 +78,24 @@ func blogPostHandler(ctx context.Context, raw json.RawMessage) (any, error) {
 
 	post := &models.Post{
 		UserID:    UserID(ctx),
+		Message:   Input(ctx),
 		Topic:     p.Topic,
 		Content:   p.Content,
 		Summary: p.Summary,
 		Keywords: p.Keywords,
 		Tags: p.Tags,
-		Slug: p.Slug,
+		Slug: generateSlug(p.Topic),
 		CreatedAt: time.Now().Unix(),
 		UpdatedAt: time.Now().Unix(),
+	}
+
+	if p.Will_Embed {
+		client := Client(ctx)
+		embedding, err := EmbedText(ctx, client, p.Content)
+		if err != nil {
+			return nil, err
+		}
+		post.Embeddings = embedding
 	}
 
 	if err := Repo(ctx).Create(ctx, post); err != nil {
@@ -83,6 +103,19 @@ func blogPostHandler(ctx context.Context, raw json.RawMessage) (any, error) {
 	}
 
 	return post, nil
+}
+
+func generateSlug(topic string) string {
+	base := slugify(topic)
+	suffix := rand.Intn(10000)
+	return fmt.Sprintf("%s-%04d", base, suffix)
+}
+
+func slugify(s string) string {
+	s = strings.ToLower(s)
+	s = regexp.MustCompile(`[^a-z0-9]+`).ReplaceAllString(s, "-")
+	s = strings.Trim(s, "-")
+	return s
 }
 
 func init() {

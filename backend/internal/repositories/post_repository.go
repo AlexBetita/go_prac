@@ -24,8 +24,15 @@ func NewPostRepository(db *mongo.Database) PostRepository {
 
 func (r *mongoPostRepository) Create(ctx context.Context, p *models.Post) error {
 	p.CreatedAt = time.Now().Unix()
-	_, err := r.coll.InsertOne(ctx, p)
-	return err
+	res, err := r.coll.InsertOne(ctx, p)
+	if err != nil {
+		return err
+	}
+
+	if oid, ok := res.InsertedID.(primitive.ObjectID); ok {
+		p.ID = oid
+	}
+	return nil
 }
 
 func (r *mongoPostRepository) FindByID(ctx context.Context, id primitive.ObjectID) (*models.Post, error) {
