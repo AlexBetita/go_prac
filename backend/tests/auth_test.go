@@ -52,7 +52,6 @@ func TestRegister(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "test@example.com", user.Email)
 
-	// Should not allow duplicate
 	_, err = svc.Register(context.Background(), "test@example.com", "another")
 	assert.Error(t, err)
 	assert.Equal(t, "email already in use", err.Error())

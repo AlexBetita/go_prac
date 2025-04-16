@@ -10,7 +10,7 @@ import (
 )
 
 type PostService interface {
-	GetBlogByID(ctx context.Context, id string) (*models.Post, error)
+	GetPostsByID(ctx context.Context, id string) (*models.Post, error)
 }
 
 type postService struct {
@@ -22,7 +22,7 @@ func NewPostService(repo repositories.PostRepository, jwtSecret string) PostServ
 	return &postService{repo: repo, jwtSecret: jwtSecret}
 }
 
-func (s *postService) GetBlogByID(ctx context.Context, id string) (*models.Post, error) {
+func (s *postService) GetPostsByID(ctx context.Context, id string) (*models.Post, error) {
     objID, err := primitive.ObjectIDFromHex(id)
     if err != nil {
         return nil, fmt.Errorf("invalid post ID: %w", err)

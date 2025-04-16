@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/AlexBetita/go_prac/internal/middlewares"
 	"github.com/AlexBetita/go_prac/internal/services"
 	"github.com/go-chi/chi/v5"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -20,17 +19,14 @@ func NewPostHandler(service services.PostService) *PostHandler {
 }
 
 
-func (h *PostHandler) GetBlogByID(w http.ResponseWriter, r *http.Request) {
+func (h *PostHandler) GetPostsByID(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if id == "" {
 		http.Error(w, "missing id", http.StatusBadRequest)
 		return
 	}
 
-	user := middlewares.User(r.Context())
-	_ = user
-
-	post, err := h.service.GetBlogByID(r.Context(), id)
+	post, err := h.service.GetPostsByID(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			http.Error(w, "post not found", http.StatusNotFound)
