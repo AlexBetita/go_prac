@@ -16,8 +16,10 @@ func NewRouter(cfg *config.Config, client *mongo.Client) http.Handler {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
+
     r.Route("/api", func(api chi.Router) {
         MountAuthRoutes(api, cfg, client)
+		MountBotRoutes(api, cfg, client)
     })
 
     return r
