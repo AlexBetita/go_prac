@@ -75,24 +75,23 @@ func (r *mongoPostRepository) Search(ctx context.Context, query string, limit in
 
 func (r *mongoPostRepository) VectorSearch(ctx context.Context, vector []float32, limit int64) ([]*models.Post, error) {
     pipeline := mongo.Pipeline{
-		bson.D{{
-			Key: "$vectorSearch",
-			Value: bson.D{
-				{Key: "index",  Value: "vector_index"},
-				{Key: "vector", Value: bson.D{
-					{Key: "path",        Value: "embeddings"},
-					{Key: "queryVector", Value: vector},
-					{Key: "k",           Value: limit},
-				}},
-			},
-		}},
-		bson.D{{
-			Key: "$project",
-			Value: bson.D{
-				{Key: "embeddings", Value: 0},
-			},
-		}},
-	}
+        bson.D{{
+            Key: "$vectorSearch",
+            Value: bson.D{
+                {Key: "index",         Value: "vector_index"},
+                {Key: "path",          Value: "embeddings"},
+                {Key: "queryVector",   Value: vector},
+                {Key: "numCandidates", Value: limit * 5},
+                {Key: "limit",         Value: limit},
+            },
+        }},
+        bson.D{{
+            Key: "$project",
+            Value: bson.D{
+                {Key: "embeddings", Value: 0},
+            },
+        }},
+    }
     return r.aggregate(ctx, pipeline)
 }
 
