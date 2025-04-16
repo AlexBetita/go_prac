@@ -20,7 +20,7 @@ type BlogPostPayload struct {
 	Keywords    []string `json:"keywords"`
 	Slug    string   `json:"slug"`
 	Summary string   `json:"summary"`
-	Will_Embed bool  `json: "will_embed"`
+	Will_Embed bool  `json:"will_embed"`
 }
 
 var blogPostDef = openai.FunctionDefinition{
