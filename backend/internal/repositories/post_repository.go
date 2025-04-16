@@ -50,38 +50,49 @@ func (r *mongoPostRepository) FindByID(ctx context.Context, id primitive.ObjectI
 
 func (r *mongoPostRepository) Search(ctx context.Context, query string, limit int64) ([]*models.Post, error) {
     pipeline := mongo.Pipeline{
-
-        bson.D{{"$search", bson.D{
-            {"index", "posts"},
-            {"compound", bson.D{
-                {"should", bson.A{
-                    bson.D{{"text", bson.D{
-                        {"query", query},
-                        {"path", bson.A{"topic", "content", "summary", "keywords", "tags"}},
-                    }}},
+        bson.D{{
+            Key: "$search",
+            Value: bson.D{
+                {Key: "index", Value: "posts"},
+                {Key: "compound", Value: bson.D{
+                    {Key: "should", Value: bson.A{
+                        bson.D{{
+                            Key: "text",
+                            Value: bson.D{
+                                {Key: "query", Value: query},
+                                {Key: "path",  Value: bson.A{"topic", "content", "summary", "keywords", "tags"}},
+                            },
+                        }},
+                    }},
                 }},
-            }},
-        }}},
-
-        bson.D{{"$limit", limit}},
-
-        bson.D{{"$project", bson.D{{"embeddings", 0}}}},
+            },
+        }},
+        bson.D{{Key: "$limit",   Value: limit}},
+        bson.D{{Key: "$project", Value: bson.D{{Key: "embeddings", Value: 0}}}},
     }
     return r.aggregate(ctx, pipeline)
 }
 
 func (r *mongoPostRepository) VectorSearch(ctx context.Context, vector []float32, limit int64) ([]*models.Post, error) {
     pipeline := mongo.Pipeline{
-        bson.D{{"$search", bson.D{
-            {"index", "vector_index"},
-            {"knn", bson.D{
-                {"vector", vector},
-                {"path",   "embeddings"},
-                {"k",      limit},
-            }},
-        }}},
-        bson.D{{"$project", bson.D{{"embeddings", 0}}}},
-    }
+		bson.D{{
+			Key: "$search",
+			Value: bson.D{
+				{Key: "index", Value: "vector_index"},
+				{Key: "knn", Value: bson.D{
+					{Key: "vector", Value: vector},
+					{Key: "path",   Value: "embeddings"},
+					{Key: "k",      Value: limit},
+				}},
+			},
+		}},
+		bson.D{{
+			Key: "$project",
+			Value: bson.D{
+				{Key: "embeddings", Value: 0},
+			},
+		}},
+	}
     return r.aggregate(ctx, pipeline)
 }
 
