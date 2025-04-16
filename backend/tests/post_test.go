@@ -34,6 +34,14 @@ func (m *mockPostRepo) FindByID(ctx context.Context, id primitive.ObjectID) (*mo
 	return nil, errors.New("not found")
 }
 
+func (m *mockPostRepo) Search(ctx context.Context, query string, limit int64) ([]*models.Post, error) {
+	return []*models.Post{}, nil
+}
+
+func (m *mockPostRepo) VectorSearch(ctx context.Context, vector []float32, limit int64) ([]*models.Post, error) {
+	return []*models.Post{}, nil
+}
+
 func TestCreatePost(t *testing.T) {
 	repo := &mockPostRepo{}
 
@@ -58,7 +66,7 @@ func TestCreatePost(t *testing.T) {
 
 func TestFindPostByID(t *testing.T) {
 	repo := &mockPostRepo{}
-	svc := services.NewPostService(repo, "test-jwt-secret")
+	svc := services.NewPostService(repo, nil)
 
 	post := &models.Post{
 		UserID:  primitive.NewObjectID(),
