@@ -7,7 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func MountBlogRoutes(r chi.Router, 
+func MountPostRoutes(r chi.Router, 
 	postH *handlers.PostHandler, 
 	authMW func(http.Handler) http.Handler,
 ) {
