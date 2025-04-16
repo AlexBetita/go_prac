@@ -7,8 +7,8 @@ import (
 	openai "github.com/sashabaranov/go-openai"
 )
 
-func EmbedText(ctx context.Context, client *openai.Client, input string) ([]float32, error) {
-	resp, err := client.CreateEmbeddings(ctx, openai.EmbeddingRequest{
+func EmbedText(ctx context.Context, oaClient *openai.Client, input string) ([]float32, error) {
+	resp, err := oaClient.CreateEmbeddings(ctx, openai.EmbeddingRequest{
 		Input: []string{input},
 		Model: openai.AdaEmbeddingV2,
 	})

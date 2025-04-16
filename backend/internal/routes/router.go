@@ -10,20 +10,21 @@ import (
 	"github.com/AlexBetita/go_prac/internal/services"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/sashabaranov/go-openai"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func NewRouter(cfg *config.Config, client *mongo.Client) http.Handler {
+func NewRouter(cfg *config.Config, mongoClient *mongo.Client, oaClient *openai.Client,) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger, middleware.Recoverer)
 
-	db       := client.Database(cfg.DBName)
+	db       := mongoClient.Database(cfg.DBName)
 	userRepo := repositories.NewUserRepository(db)
 	postRepo := repositories.NewPostRepository(db)
 
 	authSvc  := services.NewAuthService(userRepo, cfg.JWTSecret)
-	botSvc   := services.NewBotService(postRepo, cfg.OpenAIKey)
-	postSvc := services.NewPostService(postRepo, cfg.JWTSecret)
+	botSvc   := services.NewBotService(postRepo, oaClient)
+	postSvc := services.NewPostService(postRepo, oaClient)
 
 	autH  := handlers.NewAuthHandler(authSvc)
 	botH := handlers.NewBotHandler(botSvc)
