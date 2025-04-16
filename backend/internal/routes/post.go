@@ -7,13 +7,9 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func MountBotRoutes(
-	r chi.Router,
-	botH *handlers.BotHandler, 
+func MountBlogRoutes(r chi.Router, 
+	postH *handlers.PostHandler, 
 	authMW func(http.Handler) http.Handler,
 ) {
-	r.Route("/bot", func(pr chi.Router) {
-		pr.Use(authMW)
-		pr.Post("/chat", botH.Chat)
-	})
+	r.With(authMW).Get("/posts/{id}", postH.GetBlogByID)
 }

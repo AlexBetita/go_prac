@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+    "fmt"
 
 	"github.com/AlexBetita/go_prac/internal/models"
 	"github.com/AlexBetita/go_prac/internal/repositories"
@@ -53,7 +54,13 @@ func (s *authService) Login(ctx context.Context, email, password string) (string
 func (s *authService) GetUserByID(ctx context.Context, id string) (*models.User, error) {
     objID, err := primitive.ObjectIDFromHex(id)
     if err != nil {
-        return nil, err
+        return nil, fmt.Errorf("invalid user ID: %w", err)
     }
-    return s.repo.FindByID(ctx, objID)
+
+    user, err := s.repo.FindByID(ctx, objID)
+    if err != nil {
+        return nil, fmt.Errorf("failed to retrieve user: %w", err)
+    }
+
+    return user, nil
 }
