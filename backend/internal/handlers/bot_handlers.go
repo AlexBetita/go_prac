@@ -29,12 +29,12 @@ func (h *BotHandler) Chat(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    post, err := h.service.GenerateRequest(r.Context(), user.ID, body.Message)
+    response, err := h.service.GenerateRequest(r.Context(), user.ID, body.Message)
     if err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return
     }
 
     w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(post)
+    json.NewEncoder(w).Encode(response)
 }
