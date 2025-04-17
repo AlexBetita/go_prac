@@ -101,7 +101,7 @@ func (s *BotService) GenerateRequest(
         rawIn := json.RawMessage(call.Function.Arguments)
 		relatedPostsSystemMsg := openai.ChatCompletionMessage{
     		Role: openai.ChatMessageRoleSystem,
-    		Content: `You’re ChatGPT, and you’ve just fetched some related blog‑post data. 
+    		Content: `You’ve just fetched some related blog‑post data. 
 			Please:
 			1. Keep only these fields: slug, topic, views, created_by.  
 			2. Write a brief, conversational intro (“Hey there! I found these related posts…”).  
