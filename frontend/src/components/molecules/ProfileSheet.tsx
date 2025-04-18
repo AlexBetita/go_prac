@@ -1,5 +1,4 @@
 import { Button } from "@/components/atoms/shadCN/button";
-import { Input } from "@/components/atoms/shadCN/input";
 import { Label } from "@/components/atoms/shadCN/label";
 import {
   Sheet,
@@ -12,11 +11,16 @@ import {
   SheetTrigger,
 } from "@/components/atoms/shadCN/sheet";
 
-import { useAppSelector } from "@/lib/hooks/AppHooks";
+import { useAppDispatch, useAppSelector } from "@/lib/hooks/AppHooks";
 import { Avatar, AvatarFallback } from "../atoms/shadCN/avatar";
+import { logout } from "@/lib/store/slices/authSlice";
 
 export function ProfileSheet() {
+    const dispatch = useAppDispatch()
+  
   const { user } = useAppSelector((s) => s.auth);
+
+
   const initials = user?.email?.charAt(0).toUpperCase() ?? "?";
     return (
       <Sheet>
@@ -28,17 +32,9 @@ export function ProfileSheet() {
         <SheetContent>
           <SheetHeader>
             <SheetTitle>User profile</SheetTitle>
-            <SheetDescription>
-              Profile Information.
-            </SheetDescription>
+            <SheetDescription>Profile Information.</SheetDescription>
           </SheetHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
-                Id
-              </Label>
-              <span>{user?.id}</span>
-            </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="username" className="text-right">
                 Email
@@ -53,7 +49,11 @@ export function ProfileSheet() {
             </div>
           </div>
           <SheetFooter>
-
+            <SheetClose asChild>
+              <Button type="submit" onClick={() => {
+                dispatch(logout())
+              }}>Logout</Button>
+            </SheetClose>
           </SheetFooter>
         </SheetContent>
       </Sheet>

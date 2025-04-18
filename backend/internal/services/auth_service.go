@@ -13,7 +13,7 @@ import (
 
 type AuthService interface {
     Register(ctx context.Context, email, password string) (*models.User, error)
-    Login(ctx context.Context, email, password string) (string, error)
+    Login(ctx context.Context, email, password string) (string, *models.User, error)
 	GetUserByID(ctx context.Context, id string) (*models.User, error)
 }
 
@@ -39,16 +39,16 @@ func (s *authService) Register(ctx context.Context, email, password string) (*mo
     return user, nil
 }
 
-func (s *authService) Login(ctx context.Context, email, password string) (string, error) {
+func (s *authService) Login(ctx context.Context, email, password string) (string, *models.User, error) {
     user, err := s.repo.FindByEmail(ctx, email)
     if err != nil {
-        return "", err
+        return "", nil, err
     }
     if !utils.CheckPasswordHash(password, user.Password) {
-        return "", errors.New("invalid credentials")
+        return "", nil, errors.New("invalid credentials")
     }
     token, err := utils.GenerateJWT(user.ID.Hex(), s.jwtSecret)
-    return token, err
+    return token, user, err
 }
 
 func (s *authService) GetUserByID(ctx context.Context, id string) (*models.User, error) {

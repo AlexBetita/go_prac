@@ -1,7 +1,5 @@
 import { useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "@/lib/hooks/AppHooks";
-import { fetchProfileThunk, logout } from "@/lib/store/slices/authSlice";
-
 import { Button } from "@/components/atoms/shadCN/button";
 import {
   Card,
@@ -10,6 +8,8 @@ import {
   CardTitle,
 } from "@/components/atoms/shadCN/card";
 import { Skeleton } from "@/components/atoms/shadCN/skeleton";
+import { logout } from "@/lib/store/slices/authSlice";
+import { fetchProfileThunk } from "@/services/auth/thunks";
 
 export default function ProfilePage() {
   const { user } = useAppSelector((s) => s.auth);

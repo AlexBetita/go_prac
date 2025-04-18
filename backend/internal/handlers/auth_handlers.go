@@ -6,6 +6,7 @@ import (
 
 	"github.com/AlexBetita/go_prac/internal/middlewares"
 	"github.com/AlexBetita/go_prac/internal/services"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type AuthHandler struct {
@@ -43,13 +44,42 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
         http.Error(w, err.Error(), http.StatusBadRequest)
         return
     }
-    token, err := h.service.Login(r.Context(), req.Email, req.Password)
+    tokenString, user, err := h.service.Login(r.Context(), req.Email, req.Password)
     if err != nil {
         http.Error(w, err.Error(), http.StatusUnauthorized)
         return
     }
+
+    token, _, err := jwt.NewParser().ParseUnverified(tokenString, jwt.MapClaims{})
+    if err != nil {
+        http.Error(w, "Invalid token", http.StatusInternalServerError)
+        return
+    }
+
+    claims, ok := token.Claims.(jwt.MapClaims)
+    if !ok {
+        http.Error(w, "Invalid token claims", http.StatusInternalServerError)
+        return
+    }
+
+    exp, ok := claims["exp"].(float64)
+    if !ok {
+        http.Error(w, "Missing exp in token", http.StatusInternalServerError)
+        return
+    }
+
+
     w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(map[string]string{"token": token})
+    json.NewEncoder(w).Encode(map[string]interface{}{
+        "token": tokenString,
+        "exp":   int64(exp),
+        "user": map[string]interface{}{
+            "email": user.Email,
+            "provider":  "local",
+            "created_at": user.CreatedAt,
+            "updated_at": user.UpdatedAt,
+        },
+    })
 }
 
 

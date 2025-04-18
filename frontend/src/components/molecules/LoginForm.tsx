@@ -1,12 +1,13 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useAppDispatch, useAppSelector } from "@/lib/hooks/AppHooks";
-import { loginThunk, setToken } from "@/lib/store/slices/authSlice";
+import { setToken } from "@/lib/store/slices/authSlice";
 
 import { cn } from "@/lib/helpers/utils";
 import { Button } from "@/components/atoms/shadCN/button";
 import { Input } from "@/components/atoms/shadCN/input";
 import { Label } from "@/components/atoms/shadCN/label";
+import { fetchProfileThunk, loginThunk } from "@/services/auth/thunks";
 
 export function LoginForm({
   className,
@@ -18,17 +19,22 @@ export function LoginForm({
 
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const token = useAppSelector((s) => s.auth.token);
+  const auth = useAppSelector((s) => s.auth);
   const [params] = useSearchParams();
 
   useEffect(() => {
     const jwt = params.get("jwt");
-    if (jwt) dispatch(setToken(jwt));
+    const exp = Number(params.get("exp"));
+
+    if (jwt && exp) {
+      dispatch(setToken({ token: jwt, exp }))
+      dispatch(fetchProfileThunk());
+    }
   }, [params, dispatch]);
 
   useEffect(() => {
-    if (token) navigate("/");
-  }, [token, navigate]);
+    if (auth.token && auth.tokenExp) navigate("/");
+  }, [auth.token, auth.tokenExp, navigate]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();

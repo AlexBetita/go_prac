@@ -1,12 +1,12 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useAppDispatch, useAppSelector } from "@/lib/hooks/AppHooks";
-import { registerThunk } from "@/lib/store/slices/authSlice";
 
 import { cn } from "@/lib/helpers/utils";
 import { Button } from "@/components/atoms/shadCN/button";
 import { Input } from "@/components/atoms/shadCN/input";
 import { Label } from "@/components/atoms/shadCN/label";
+import { registerThunk } from "@/services/auth/thunks";
 
 export function RegisterForm({
   className,
