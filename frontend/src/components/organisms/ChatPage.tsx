@@ -6,7 +6,7 @@ export default function ChatPage() {
   const messages = useAppSelector((state) => state.bot.entries);
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col">
       {messages.length > 0 && <ChatResponse />}
       <ChatBox />
     </div>

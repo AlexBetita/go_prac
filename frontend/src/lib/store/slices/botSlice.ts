@@ -2,8 +2,11 @@ import { createSlice } from "@reduxjs/toolkit";
 import { chatWithBot } from "@/services/bot/thunks";
 import { BotState } from "@/lib/types/botTypes";
 
+// TEMP: inject mock data in dev mode
+import { mockBotEntries } from "../mock/botChatMockData";
+
 const initialState: BotState = {
-  entries: [],
+  entries: import.meta.env.DEV ? mockBotEntries : [],
   loading: false,
   error: undefined,
 };

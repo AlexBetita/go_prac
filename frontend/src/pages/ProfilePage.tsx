@@ -29,7 +29,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="relative min-h-screen bg-background">
+    <div className="relative min- bg-background">
       {/* Main Profile Card */}
       <div className="flex justify-center items-center pt-28">
         <Card className="w-full max-w-md shadow-md">

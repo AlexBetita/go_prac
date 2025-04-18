@@ -13,6 +13,7 @@ export default function ChatBox() {
   const dispatch = useAppDispatch();
 
   const user = useAppSelector((state) => state.auth.user);
+  const loading = useAppSelector((state) => state.bot.loading);
 
   const [input, setInput] = useState("");
   const [hide, setHide] = useState(false)
@@ -38,31 +39,32 @@ export default function ChatBox() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
-      {!hide &&
-        <motion.h1
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="mb-6 text-2xl font-semibold text-center"
-        >
-          Good to see you, {user?.email.split("@")[0]}
-        </motion.h1>
-      }
+    <div className="bg-background flex items-center justify-center px-4 overflow-hidden">
+      <div className="w-full max-w-3xl flex flex-col items-center">
+        {!hide && (
+          <motion.h1
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="mb-6 text-2xl font-semibold text-center"
+          >
+            Good to see you, {user?.email.split("@")[0]}
+          </motion.h1>
+        )}
 
-      <motion.div
-        initial={{ opacity: 0, scale: 0.97 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ type: "spring", stiffness: 250, damping: 20 }}
-        className="w-full max-w-3xl bg-card rounded-2xl shadow-md px-6 py-5"
-      >
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <Textarea
-            ref={textareaRef}
-            value={input}
-            onInput={handleInput}
-            placeholder="Ask anything…"
-            className="
+        <motion.div
+          initial={{ opacity: 0, scale: 0.97 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: "spring", stiffness: 250, damping: 20 }}
+          className="w-full bg-card rounded-2xl shadow-md px-6 py-5"
+        >
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <Textarea
+              ref={textareaRef}
+              value={input}
+              onInput={handleInput}
+              placeholder="Ask anything…"
+              className="
               flex-1
               min-h-[44px]
               max-h-[240px]
@@ -74,48 +76,52 @@ export default function ChatBox() {
               overflow-y-auto
               transition-[height] duration-200 ease-in-out
             "
-          />
+            />
 
-          <div className="flex items-center justify-between mt-4">
-            <div className="flex flex-wrap gap-2">
-              {suggestions.map((text) => (
-                <motion.div
-                  key={text}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <Badge
-                    variant="outline"
-                    onClick={() => {
-                      setInput(text);
-                      setTimeout(() => {
-                        if (textareaRef.current) {
-                          textareaRef.current.style.height = "auto";
-                          textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-                        }
-                      }, 0);
-                    }}
-                    className="cursor-pointer"
+            <div className="flex items-center justify-between mt-4">
+              <div className="flex flex-wrap gap-2">
+                {suggestions.map((text) => (
+                  <motion.div
+                    key={text}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
                   >
-                    {text}
-                  </Badge>
-                </motion.div>
-              ))}
-            </div>
+                    <Badge
+                      variant="outline"
+                      onClick={() => {
+                        setInput(text);
+                        setTimeout(() => {
+                          if (textareaRef.current) {
+                            textareaRef.current.style.height = "auto";
+                            textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+                          }
+                        }, 0);
+                      }}
+                      className="cursor-pointer"
+                    >
+                      {text}
+                    </Badge>
+                  </motion.div>
+                ))}
+              </div>
 
-            <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-              <Button
-                type="submit"
-                disabled={!input.trim()}
-                className="h-11 px-6"
+              <motion.div
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
               >
-                Send
-              </Button>
-            </motion.div>
-          </div>
-        </form>
-      </motion.div>
+                <Button
+                  type="submit"
+                  disabled={!input.trim()}
+                  className="h-11 px-6"
+                >
+                  {loading ? "Sending…" : "Send"}
+                </Button>
+              </motion.div>
+            </div>
+          </form>
+        </motion.div>
+      </div>
     </div>
   );
 }
