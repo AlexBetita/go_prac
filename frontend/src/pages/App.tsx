@@ -8,7 +8,7 @@ export default function AppLayout() {
 		<AuthProvider>
 			<div className="min-h-screen">
 				<Navbar />
-				<main className="px-4 py-6">
+				<main className="py-1">
 					<Outlet />
 				</main>
 

@@ -14,6 +14,7 @@ export default function ChatBox() {
 
   const user = useAppSelector((state) => state.auth.user);
   const loading = useAppSelector((state) => state.bot.loading);
+  const interactions = useAppSelector((state)=> state.bot.entries);
 
   const [input, setInput] = useState("");
   const [hide, setHide] = useState(false)
@@ -39,26 +40,30 @@ export default function ChatBox() {
   };
 
   return (
-    <div className="bg-background flex items-center justify-center px-4 overflow-hidden">
-      <div className="w-full max-w-3xl flex flex-col items-center">
-        {!hide && (
-          <motion.h1
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="mb-6 text-2xl font-semibold text-center"
-          >
-            Good to see you, {user?.email.split("@")[0]}
-          </motion.h1>
-        )}
+    <div
+      className="z-1
+    flex items-center justify-center px-4 overflow-hidden h-full"
+    >
+      <div className="w-full max-w-5xl flex flex-col items-center ">
+        {!hide ||
+          (interactions.length > 0 && (
+            <motion.h1
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="mb-6 text-2xl font-semibold text-center"
+            >
+              Good to see you, {user?.email.split("@")[0]}
+            </motion.h1>
+          ))}
 
         <motion.div
           initial={{ opacity: 0, scale: 0.97 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ type: "spring", stiffness: 250, damping: 20 }}
-          className="w-full bg-card rounded-2xl shadow-md px-6 py-5"
+          className="w-full h-full"
         >
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <form onSubmit={handleSubmit} className="flex flex-col">
             <Textarea
               ref={textareaRef}
               value={input}
@@ -70,7 +75,7 @@ export default function ChatBox() {
               max-h-[240px]
               resize-none
               rounded-lg
-              border border-gray-300
+              border border-gray-400
               px-3 py-2
               focus:outline-none focus:ring-2 focus:ring-gray-400
               overflow-y-auto
@@ -78,7 +83,7 @@ export default function ChatBox() {
             "
             />
 
-            <div className="flex items-center justify-between mt-4">
+            <div className="flex items-center justify-between mt-2">
               <div className="flex flex-wrap gap-2">
                 {suggestions.map((text) => (
                   <motion.div
@@ -113,7 +118,7 @@ export default function ChatBox() {
                 <Button
                   type="submit"
                   disabled={!input.trim()}
-                  className="h-11 px-6"
+                  className="h-10 px-6"
                 >
                   {loading ? "Sending…" : "Send"}
                 </Button>

@@ -6,9 +6,9 @@ export const loginThunk = createAsyncThunk<
   { token: string; exp: number; user: User },
   { email: string; password: string },
   { rejectValue: string }
->("auth/login", async ({ email, password }, { rejectWithValue }) => {
-  try {
-    const response = await login(email, password);
+  >("auth/login", async ({ email, password }, { rejectWithValue }) => {
+    try {
+      const response = await login(email, password);
     return response;
   } catch (e: any) {
     return rejectWithValue(e.response?.data?.message ?? "Login failed");
