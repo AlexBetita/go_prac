@@ -42,9 +42,9 @@ export default function ChatBox() {
   return (
     <div
       className="z-1
-    flex items-center justify-center px-4 overflow-hidden h-full"
+    flex items-center justify-center px-4 md:overflow-hidden h-full"
     >
-      <div className="w-full max-w-5xl flex flex-col items-center ">
+      <div className="w-full max-w-5xl flex flex-col items-center">
         {!hide ||
           (interactions.length > 0 && (
             <motion.h1

@@ -2,6 +2,12 @@ import { BotEntry } from "@/lib/types/botTypes";
 
 export const mockBotEntries: BotEntry[] = [
   {
+    userMessage: "Are their any posts about programming?",
+    type: "related_posts",
+    response:
+      "Hey there! 🌟 I just dug up some related blog posts, and I think I found a few gems for you. Let's dive in! I've split them into posts that are relevant to programming (yay!) and posts that are... well, not so relevant (still cool but maybe not what we're looking for). Ready? Let's go! 🚀\n\n---\n\n### **Posts Relevant to Programming** 📚\nHere are the golden nuggets that tie back to programming:\n\n| **Slug**             | **Topic**                                      | **Views** | **Created By** |\n|----------------------|-----------------------------------------------|-----------|----------------|\n| `dark-vs-light`      | Dark Mode Devs vs Light Mode Rebels           | 0         | Seeder         |\n| `99-script-problems` | 99 Problems But a Script Ain't One            | 0         | Seeder         |\n| `dev-wrist-health`   | A Dev’s Guide to Healthy Wrists               | 0         | Seeder         |\n\n---\n\n### **Posts Not Relevant to Programming** 🙃 (Still worth a look!)\nThese might not scream \"coding,\" but hey, we're multifaceted humans, right?\n\n| **Slug**              | **Topic**                                  | **Views** | **Created By** |\n|-----------------------|-------------------------------------------|-----------|----------------|\n| `remote-dev-travel`   | Traveling as a Remote Dev: Dream or Distraction? | 0       | Seeder         |\n| `burnout-breakthrough`| From Burnout to Breakthrough              | 0         | Seeder         |\n\n---\n\nThere you have it! Hope these posts spark some curiosity (or at least give you an excuse to procrastinate in style 😄). Which one are you checking out first? ✨",
+  },
+  {
     userMessage: "How to center a div horizontally?",
     type: "chat",
     response:

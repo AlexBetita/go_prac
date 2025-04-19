@@ -106,7 +106,8 @@ func (s *BotService) GenerateRequest(
 			1. Keep only these fields: slug, topic, views, created_by.  
 			2. Write a brief, conversational intro (“Hey there! I found these related posts…”).  
 			3. Render the posts in a Markdown list or table (your choice), showing only those four fields.  
-			4. Give it your usual friendly flair—feel free to sprinkle in a couple of emojis or asides to keep it engaging.`,
+			4. Give it your usual friendly flair—feel free to sprinkle in a couple of emojis or asides to keep it engaging.
+			5. Seperate the lists by relevant to not relevant`,
 		}
         resultJSON, err := spec.Handle(ctx, rawIn)
         if err != nil {
