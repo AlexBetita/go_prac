@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from "react";
+import Markdown from "react-markdown";
+import { motion } from "framer-motion";
+import remarkGfm from "remark-gfm";
+import { Copy, ThumbsUp, ThumbsDown, ChevronDown } from "lucide-react";
+
 import { useAppSelector } from "@/lib/hooks/AppHooks";
 import { selectBotChatMessages } from "@/lib/store/selectors/botChatSelectors";
 import { Label } from "@radix-ui/react-label";
-import { motion } from "framer-motion";
-import { Copy, ThumbsUp, ThumbsDown, ChevronDown } from "lucide-react";
+
 import {
   Tooltip,
   TooltipContent,
@@ -75,11 +79,11 @@ export default function ChatResponse() {
                   <Label
                     className={`px-4 py-2 rounded-lg text-sm ${
                       msg.isUser
-                        ? "bg-gray-100 dark:bg-gray-800 text-black dark:text-white shadow-sm max-w-[85%] ml-12"
+                        ? "bg-gray-100 dark:bg-zinc-900 text-black dark:text-white shadow-sm max-w-[85%] ml-12"
                         : "text-foreground max-w-[75%] mr-12"
                     }`}
                   >
-                    {msg.text}
+                    <Markdown remarkPlugins={[remarkGfm]}>{msg.text}</Markdown>
                   </Label>
                 </motion.div>
 
@@ -142,13 +146,16 @@ export default function ChatResponse() {
               </div>
             ))}
 
-            
-              <div className={`sticky bottom-4 pt-2 flex justify-center z-10 ${showArrow ? '': 'opacity-0'}`}>
-                <ChevronDown
-                  onClick={handleScrollBottom}
-                  className="w-8 h-8 text-muted-foreground cursor-pointer hover:text-primary transition"
-                />
-              </div>
+            <div
+              className={`sticky bottom-4 pt-2 flex justify-center z-10 ${
+                showArrow ? "" : "opacity-0"
+              }`}
+            >
+              <ChevronDown
+                onClick={handleScrollBottom}
+                className="w-8 h-8 text-muted-foreground cursor-pointer hover:text-primary transition"
+              />
+            </div>
           </div>
         </div>
       </div>
