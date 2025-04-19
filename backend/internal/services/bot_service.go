@@ -104,13 +104,19 @@ func (s *BotService) GenerateRequest(
 
 			relatedPostsSystemMsg := openai.ChatCompletionMessage{
 				Role: openai.ChatMessageRoleSystem,
-				Content: `You’ve just fetched some related blog‑post data. 
-					Please:
-					1. Keep only these fields: slug, topic, views, created_by.  
-					2. Write a brief, conversational intro (“Hey there! I found these related posts…”).  
-					3. Render the posts in a Markdown list or table (your choice), showing only those four fields.  
-					4. Give it your usual friendly flair—feel free to sprinkle in a couple of emojis or asides to keep it engaging.
-					5. Separate the lists by relevant to not relevant`,
+				Content: `You just fetched related blog post data.
+
+				Please format it as follows:
+
+				1. Keep only these fields: slug, topic, views, created_by.
+				2. Start with a short, friendly intro (e.g. “Hey there! I found some posts you might like…”).
+				3. Use **clean, well-formatted Markdown tables**. One table for relevant posts, another for not relevant.
+				4. Use meaningful section headings like "### 🚀 Programming Posts" and "### 🌴 Other Interesting Reads".
+				5. Keep the tone conversational but concise. Add a few light emojis for charm, but don’t overdo it.
+				6. Keep spacing and formatting neat for maximum clarity.
+				7. No explanations or bullet lists — only the intro and two tables.
+
+				Thanks!`,
 			}
 
 			followupReq := openai.ChatCompletionRequest{
@@ -135,6 +141,18 @@ func (s *BotService) GenerateRequest(
 			}
 
 			finalOut = finalResp.Choices[0].Message.Content
+			finalStr, ok := finalOut.(string)
+			if !ok {
+				return nil, errors.New("finalOut is not a string")
+			}
+			saveRep := &models.Interaction{
+				UserID:      userID,
+				UserMessage: message,
+				BotResponse: finalStr,
+			}
+			if err := s.iaRepo.Create(ctx, saveRep); err != nil {
+				return nil, err
+			}
 		}
 	}
 
