@@ -6,7 +6,7 @@ import { BotState } from "@/lib/types/botTypes";
 import { mockBotEntries } from "../mock/botChatMockData";
 
 const initialState: BotState = {
-  entries: import.meta.env.DEV ? mockBotEntries : [],
+  entries: import.meta.env.VITE_ENABLE_MOCK === "yeah" ? mockBotEntries : [],
   loading: false,
   error: undefined,
 };
