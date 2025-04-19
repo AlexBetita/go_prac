@@ -14,3 +14,11 @@ export interface BotEntry {
   type: BotResponse["type"];
   response: BotResponse["response"];
 }
+
+
+export const BotInteractionResponseTypes = [
+  "interaction",
+  "related_posts",
+] as const;
+
+export type BotResponseType = (typeof BotInteractionResponseTypes)[number];

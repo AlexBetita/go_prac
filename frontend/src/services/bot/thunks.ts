@@ -1,7 +1,7 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { sendBotMessage } from "./api";
 import { AuthState } from "@/lib/types/authTypes";
-import { BotEntry } from "@/lib/types/botTypes";
+import { BotEntry, BotInteractionResponseTypes, BotResponseType } from "@/lib/types/botTypes";
 
 export const chatWithBot = createAsyncThunk<
   BotEntry,
@@ -12,11 +12,19 @@ export const chatWithBot = createAsyncThunk<
   if (!jwt) return rejectWithValue("No token in store");
   try {
     const botRes = await sendBotMessage(message, jwt);
-    return {
-      userMessage: message,
-      type: botRes.type as BotEntry["type"],
-      response: botRes.response,
-    };
+    if (BotInteractionResponseTypes.includes(botRes.type as BotResponseType)) {
+      return {
+        userMessage: message,
+        type: botRes.type as BotEntry["type"],
+        response: botRes.response
+      };
+    }
+    // handle post differently... WIP
+      return {
+        userMessage: message,
+        type: botRes.type as BotEntry["type"],
+        response: botRes.response,
+      };
   } catch (err: any) {
     return rejectWithValue(err.response?.data || err.message);
   }
