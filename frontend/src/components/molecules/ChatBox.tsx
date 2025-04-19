@@ -45,8 +45,7 @@ export default function ChatBox() {
     flex items-center justify-center px-4 md:overflow-hidden h-full"
     >
       <div className="w-full max-w-5xl flex flex-col items-center">
-        {!hide ||
-          (interactions.length > 0 && (
+        {!hide && interactions.length === 0 && (
             <motion.h1
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -55,7 +54,7 @@ export default function ChatBox() {
             >
               Good to see you, {user?.email.split("@")[0]}
             </motion.h1>
-          ))}
+          )}
 
         <motion.div
           initial={{ opacity: 0, scale: 0.97 }}
