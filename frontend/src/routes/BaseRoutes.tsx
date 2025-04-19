@@ -2,8 +2,9 @@ import { BrowserRouter, Routes, Route } from "react-router";
 import ProtectedRoute from "./ProtectedRoute";
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
-import ProfilePage from "@/pages/ProfilePage";
+// import ProfilePage from "@/pages/ProfilePage";
 import AppLayout from "@/pages/App";
+import HomePage from "@/pages/HomePage";
 
 export default function AppRoutes() {
 	return (
@@ -14,8 +15,8 @@ export default function AppRoutes() {
                     <Route path="/register" element={<RegisterPage />} />
 
                     <Route element={<ProtectedRoute />}>
-                        <Route path="/profile" element={<ProfilePage />} />
-                        <Route path="/" element={<ProfilePage />} />
+                        {/* <Route path="/profile" element={<ProfilePage />} /> */}
+                        <Route path="/" element={<HomePage />} />
                     </Route>
                 </Route>
 			</Routes>

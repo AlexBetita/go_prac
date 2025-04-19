@@ -76,84 +76,105 @@ func (s *BotService) GenerateRequest(
 
     msg := firstResp.Choices[0].Message
 
+	var finalOut interface{}
+
 	if len(msg.ToolCalls) == 0 {
-		interaction := &models.Interaction{
+		finalOut = &models.Interaction{
 			UserID:      userID,
 			UserMessage: message,
 			BotResponse: msg.Content,
 		}
-		if err := s.iaRepo.Create(ctx, interaction); err != nil {
+	} else {
+		call := msg.ToolCalls[0]
+		spec, ok := bot.Registry[call.Function.Name]
+		if !ok {
+			return nil, errors.New("unknown function: " + call.Function.Name)
+		}
+
+		rawIn := json.RawMessage(call.Function.Arguments)
+		out, err := spec.Handle(ctx, rawIn)
+		if err != nil {
+			return nil, err
+		}
+
+		finalOut = out
+
+		if call.Function.Name == "get_related_posts" {
+			payloadStr := string(out.([]byte))
+
+			relatedPostsSystemMsg := openai.ChatCompletionMessage{
+				Role: openai.ChatMessageRoleSystem,
+				Content: `You just fetched related blog post data.
+
+				Please format it as follows:
+
+				1. Keep only these fields: slug, topic, views, created_by.
+				2. Start with a short, friendly intro (e.g. “Hey there! I found some posts you might like…”).
+				3. Use **clean, well-formatted Markdown tables**. One table for relevant posts, another for not relevant.
+				4. Use meaningful section headings like "### 🚀 Programming Posts" and "### 🌴 Other Interesting Reads".
+				5. Keep the tone conversational but concise. Add a few light emojis for charm, but don’t overdo it.
+				6. Keep spacing and formatting neat for maximum clarity.
+				7. No explanations or bullet lists — only the intro and two tables.
+
+				Thanks!`,
+			}
+
+			followupReq := openai.ChatCompletionRequest{
+				Model: model,
+				Messages: []openai.ChatCompletionMessage{
+					relatedPostsSystemMsg,
+					userMsg,
+					{
+						Role:    openai.ChatMessageRoleFunction,
+						Name:    call.Function.Name,
+						Content: payloadStr,
+					},
+				},
+			}
+
+			finalResp, err := s.oaClient.CreateChatCompletion(ctx, followupReq)
+			if err != nil {
+				return nil, err
+			}
+			if len(finalResp.Choices) == 0 {
+				return nil, errors.New("no choices on follow-up call")
+			}
+
+			finalOut = finalResp.Choices[0].Message.Content
+			finalStr, ok := finalOut.(string)
+			if !ok {
+				return nil, errors.New("finalOut is not a string")
+			}
+			saveRep := &models.Interaction{
+				UserID:      userID,
+				UserMessage: message,
+				BotResponse: finalStr,
+			}
+			if err := s.iaRepo.Create(ctx, saveRep); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	switch v := finalOut.(type) {
+	case *models.Post:
+		return &models.BotResponse{Type: "post", Response: v}, nil
+	case *models.Interaction:
+		if err := s.iaRepo.Create(ctx, v); err != nil {
 			return nil, err
 		}
 		return &models.BotResponse{
 			Type:     "interaction",
-			Response: interaction,
+			Response: v.BotResponse,
 		}, nil
+	case string:
+		return &models.BotResponse{
+			Type:     "related_posts",
+			Response: v,
+		}, nil
+	case *models.BotResponse:
+		return v, nil
+	default:
+		return nil, errors.New("unsupported type returned")
 	}
-
-	call := msg.ToolCalls[0]
-	spec, ok := bot.Registry[call.Function.Name]
-	if !ok {
-		return nil, errors.New("unknown function: " + call.Function.Name)
-	}
-
-	if call.Function.Name == "get_related_posts" {
-        rawIn := json.RawMessage(call.Function.Arguments)
-		relatedPostsSystemMsg := openai.ChatCompletionMessage{
-    		Role: openai.ChatMessageRoleSystem,
-    		Content: `You’ve just fetched some related blog‑post data. 
-			Please:
-			1. Keep only these fields: slug, topic, views, created_by.  
-			2. Write a brief, conversational intro (“Hey there! I found these related posts…”).  
-			3. Render the posts in a Markdown list or table (your choice), showing only those four fields.  
-			4. Give it your usual friendly flair—feel free to sprinkle in a couple of emojis or asides to keep it engaging.`,
-		}
-        resultJSON, err := spec.Handle(ctx, rawIn)
-        if err != nil {
-            return nil, err
-        }
-		payloadStr := string(resultJSON.([]byte))
-        followupReq := openai.ChatCompletionRequest{
-            Model: model,
-            Messages: []openai.ChatCompletionMessage{
-                relatedPostsSystemMsg,
-                userMsg,
-                {
-                    Role:    openai.ChatMessageRoleFunction,
-                    Name:    call.Function.Name,
-                    Content: payloadStr,
-                },
-            },
-        }
-        finalResp, err := s.oaClient.CreateChatCompletion(ctx, followupReq)
-        if err != nil {
-            return nil, err
-        }
-        if len(finalResp.Choices) == 0 {
-            return nil, errors.New("no choices on follow‑up call")
-        }
-        return &models.BotResponse{
-            Type:     "related_posts",
-            Response: finalResp.Choices[0].Message.Content,
-        }, nil
-    }
-
-	raw := json.RawMessage(call.Function.Arguments)
-	out, err := spec.Handle(ctx, raw)
-	if err != nil {
-		return nil, err
-	}
-
-	switch v := out.(type) {
-		case *models.Post:
-			return &models.BotResponse{Type: "post", Response: v}, nil
-		case []*models.Post:
-			return &models.BotResponse{Type: "related_posts", Response: v}, nil
-		case *models.Interaction:
-			return &models.BotResponse{Type: "interaction", Response: v}, nil
-		case *models.BotResponse:
-			return v, nil
-		default:
-			return nil, errors.New("tool `" + call.Function.Name + "` returned unsupported type")
-    }
 }

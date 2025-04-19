@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 	"os"
+	"time"
 
 	"github.com/AlexBetita/go_prac/internal/config"
 	"github.com/AlexBetita/go_prac/internal/models"
 	"github.com/AlexBetita/go_prac/internal/repositories"
 	"github.com/AlexBetita/go_prac/pkg/utils"
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
@@ -89,6 +90,26 @@ func (h *GoogleHandler) Callback(w http.ResponseWriter, r *http.Request) {
         Secure:   true,
         SameSite: http.SameSiteLaxMode,
     })
-	redirectURL := fmt.Sprintf("%s/login?jwt=%s", os.Getenv("FRONTEND_URL"), jwtToken)
+
+    parsedToken, _, err := jwt.NewParser().ParseUnverified(jwtToken, jwt.MapClaims{})
+    if err != nil {
+        http.Error(w, "Failed to parse token", http.StatusInternalServerError)
+        return
+    }
+
+    claims, ok := parsedToken.Claims.(jwt.MapClaims)
+    if !ok {
+        http.Error(w, "Invalid token claims", http.StatusInternalServerError)
+        return
+    }
+
+    expFloat, ok := claims["exp"].(float64)
+    if !ok {
+        http.Error(w, "Missing exp in token", http.StatusInternalServerError)
+        return
+    }
+
+    exp := int64(expFloat)
+	redirectURL := fmt.Sprintf("%s/login?jwt=%s&exp=%d", os.Getenv("FRONTEND_URL"), jwtToken, exp)
 	http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
 }
