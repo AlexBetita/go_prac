@@ -5,7 +5,7 @@ import "go.mongodb.org/mongo-driver/bson/primitive"
 type Post struct {
 	ID          primitive.ObjectID   `bson:"_id,omitempty"    json:"id"`
 	UserID      primitive.ObjectID   `bson:"user_id"          json:"-"`
-	Topic       string               `bson:"topic"            json:"topic"`
+	Title       string               `bson:"title"            json:"title"`
 	Content     string               `bson:"content"          json:"content"`
 	Summary     string               `bson:"summary"          json:"summary"`
 	Message     string               `bson:"message"          json:"message"`

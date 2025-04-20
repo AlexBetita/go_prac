@@ -15,7 +15,7 @@ import (
 
 type BlogPostPayload struct {
 	Content string   `json:"content"`
-	Topic   string   `json:"topic"`
+	Title   string   `json:"title"`
 	Tags    []string `json:"tags"`
 	Keywords    []string `json:"keywords"`
 	Slug    string   `json:"slug"`
@@ -25,7 +25,7 @@ type BlogPostPayload struct {
 
 var blogPostDef = openai.FunctionDefinition{
 	Name:        "create_blog_post",
-	Description: "Return a markdown blog post about a given topic",
+	Description: "Return a markdown blog post about a given title",
 	Parameters: map[string]any{
 		"type": "object",
 		"properties": map[string]any{
@@ -33,9 +33,9 @@ var blogPostDef = openai.FunctionDefinition{
 				"type":        "string",
 				"description": "Full blog post in markdown",
 			},
-			"topic": map[string]string{
+			"title": map[string]string{
 				"type": 	"string",
-				"description": "Topic of the blog post",
+				"description": "Title of the blog post",
 			},
 			"tags": map[string]any{
 				"type": "array",
@@ -63,7 +63,7 @@ var blogPostDef = openai.FunctionDefinition{
 			},
 		},
 		"required": 
-			[]string{"content", "topic", 
+			[]string{"content", "title", 
 			"tags", "summary", "keywords",
 		"slug", "will_embed"},
 	},
@@ -79,12 +79,12 @@ func blogPostHandler(ctx context.Context, raw json.RawMessage) (any, error) {
 	post := &models.Post{
 		UserID:    UserID(ctx),
 		Message:   Input(ctx),
-		Topic:     p.Topic,
+		Title:     p.Title,
 		Content:   p.Content,
 		Summary: p.Summary,
 		Keywords: p.Keywords,
 		Tags: p.Tags,
-		Slug: generateSlug(p.Topic),
+		Slug: generateSlug(p.Title),
 		CreatedAt: time.Now().Unix(),
 		UpdatedAt: time.Now().Unix(),
 	}
@@ -105,8 +105,8 @@ func blogPostHandler(ctx context.Context, raw json.RawMessage) (any, error) {
 	return post, nil
 }
 
-func generateSlug(topic string) string {
-	base := slugify(topic)
+func generateSlug(title string) string {
+	base := slugify(title)
 	suffix := rand.Intn(10000)
 	return fmt.Sprintf("%s-%04d", base, suffix)
 }

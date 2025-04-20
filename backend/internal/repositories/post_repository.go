@@ -60,7 +60,7 @@ func (r *mongoPostRepository) Search(ctx context.Context, query string, limit in
                             Key: "text",
                             Value: bson.D{
                                 {Key: "query", Value: query},
-                                {Key: "path",  Value: bson.A{"topic", "content", "summary", "keywords", "tags"}},
+                                {Key: "path",  Value: bson.A{"title", "content", "summary", "keywords", "tags"}},
                             },
                         }},
                     }},
