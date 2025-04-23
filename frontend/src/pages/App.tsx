@@ -1,19 +1,21 @@
-import Navbar from "@/components/organisms/NavBar";
+
 import { Outlet } from "react-router";
 import { ModeToggle } from "@/components/templates/mode-toggle";
 import { AuthProvider } from "@/lib/providers/AuthProvider";
+import { ExtendedAppProps } from "@/lib/types/generalTypes";
+import { InitialDataContextProvider } from "@/lib/providers/AppProvider";
 
-export default function AppLayout() {
-	return (
-		<AuthProvider>
-			<div className="min-h-screen">
-				<Navbar />
-				<main className="py-1">
-					<Outlet />
-				</main>
-
-				<ModeToggle/>
-			</div>
-		</AuthProvider>
-	);
+export default function App({ initialData, children }: ExtendedAppProps) {
+  return (
+    <InitialDataContextProvider initialData={initialData}>
+      <AuthProvider>
+        <div className="h-full">
+          <main>
+            {children || <Outlet />}
+          </main>
+          <ModeToggle />
+        </div>
+      </AuthProvider>
+    </InitialDataContextProvider>
+  );
 }

@@ -2,10 +2,9 @@ import { useAppDispatch, useAppSelector } from "@/lib/hooks/AppHooks";
 import { fetchProfileThunk } from "@/services/auth/thunks";
 import { logout } from "@/lib/store/slices/authSlice";
 import { useEffect } from "react";
+import { Props } from "../types/generalTypes";
 
-type Props = {
-  children: React.ReactNode;
-};
+
 
 export function AuthProvider({ children }: Props) {
   const dispatch = useAppDispatch();
