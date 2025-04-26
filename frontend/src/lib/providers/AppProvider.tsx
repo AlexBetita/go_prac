@@ -4,6 +4,7 @@ import { InitialDataContext } from "./initialDataContext";
 export function InitialDataContextProvider({
   children,
   initialData,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 }: Props & { initialData: any }) {
   return (
     <InitialDataContext.Provider value={initialData}>

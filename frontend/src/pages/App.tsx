@@ -1,6 +1,6 @@
 
 import { Outlet } from "react-router";
-import { ModeToggle } from "@/components/templates/mode-toggle";
+import { ModeToggle } from "@/components/templates/ModeToggle";
 import { AuthProvider } from "@/lib/providers/AuthProvider";
 import { ExtendedAppProps } from "@/lib/types/generalTypes";
 import { InitialDataContextProvider } from "@/lib/providers/AppProvider";

@@ -12,7 +12,7 @@ import (
 )
 
 type PostService interface {
-	GetPostsByID(ctx context.Context, id string) (*models.Post, error)
+	GetPost(ctx context.Context, identifier string) (*models.Post, error)
 	SearchPosts(ctx context.Context, q string, limit int64) ([]*models.Post, error)
 	SearchPostsByVector(ctx context.Context, q string, limit int64) ([]*models.Post, error)
 }
@@ -26,17 +26,20 @@ func NewPostService(repo repositories.PostRepository, oaClient *openai.Client) P
 	return &postService{repo: repo, oaClient: oaClient}
 }
 
-func (s *postService) GetPostsByID(ctx context.Context, id string) (*models.Post, error) {
-	objID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		return nil, fmt.Errorf("invalid post ID: %w", err)
+func (s *postService) GetPost(ctx context.Context, identifier string) (*models.Post, error) {
+	if oid, err := primitive.ObjectIDFromHex(identifier); err == nil {
+		if post, err := s.repo.FindByID(ctx, oid); err == nil {
+			return post, nil
+		} else {
+			return nil, fmt.Errorf("failed to find post by ID %s: %w", oid.Hex(), err)
+		}
 	}
-
-	post, err := s.repo.FindByID(ctx, objID)
+	
+	post, err := s.repo.FindBySlug(ctx, identifier)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch post: %w", err)
+		return nil, fmt.Errorf("failed to find post by slug '%s': %w", identifier, err)
 	}
-
+	
 	return post, nil
 }
 

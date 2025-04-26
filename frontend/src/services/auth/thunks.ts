@@ -1,4 +1,6 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
+import { AxiosError } from "axios";
+
 import { login, register, fetchProfile } from "./api";
 import { User, AuthState } from "@/lib/types/authTypes";
 
@@ -10,8 +12,9 @@ export const loginThunk = createAsyncThunk<
     try {
       const response = await login(email, password);
     return response;
-  } catch (e: any) {
-    return rejectWithValue(e.response?.data?.message ?? "Login failed");
+  } catch (e: unknown) {
+    const err = e as AxiosError<{ message?: string }>;
+    return rejectWithValue(err.response?.data?.message ?? "Login failed");
   }
 });
 
@@ -22,8 +25,9 @@ export const registerThunk = createAsyncThunk<
 >("auth/register", async ({ email, password }, { rejectWithValue }) => {
   try {
     return await register(email, password);
-  } catch (e: any) {
-    return rejectWithValue(e.response?.data?.message ?? "Register failed");
+  } catch (e: unknown) {
+    const err = e as AxiosError<{ message?: string }>;
+    return rejectWithValue(err.response?.data?.message ?? "Register failed");
   }
 });
 
@@ -36,7 +40,8 @@ export const fetchProfileThunk = createAsyncThunk<
   if (!jwt) return rejectWithValue("No token");
   try {
     return await fetchProfile(jwt);
-  } catch (e: any) {
-    return rejectWithValue("Unauthorized");
+  } catch (e: unknown) {
+    const err = e as AxiosError<{ message?: string }>;
+    return rejectWithValue(err.response?.data?.message ?? "Unauthorized");
   }
 });

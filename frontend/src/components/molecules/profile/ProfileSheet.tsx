@@ -1,3 +1,4 @@
+import { Avatar, AvatarFallback } from "@/components/atoms/shadCN/avatar";
 import { Button } from "@/components/atoms/shadCN/button";
 import { Label } from "@/components/atoms/shadCN/label";
 import {
@@ -12,14 +13,12 @@ import {
 } from "@/components/atoms/shadCN/sheet";
 
 import { useAppDispatch, useAppSelector } from "@/lib/hooks/AppHooks";
-import { Avatar, AvatarFallback } from "../atoms/shadCN/avatar";
+
 import { logout } from "@/lib/store/slices/authSlice";
 
 export function ProfileSheet() {
-    const dispatch = useAppDispatch()
-  
+  const dispatch = useAppDispatch()
   const { user } = useAppSelector((s) => s.auth);
-
 
   const initials = user?.email?.charAt(0).toUpperCase() ?? "?";
     return (

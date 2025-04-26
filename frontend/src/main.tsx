@@ -7,7 +7,7 @@ import { PersistGate } from "redux-persist/integration/react";
 import App from "@/pages/App";
 import AppRoutes from "@/routes/BaseRoutes";
 import { store, persistor } from "@/lib/store";
-import { ThemeProvider } from "@/components/templates/theme-provider";
+import { ThemeProvider } from "@/components/templates/ThemeProvider";
 
 import "@/styles/globals.css";
 import Navbar from "./components/organisms/NavBar";

@@ -2,7 +2,7 @@ import { Link } from "react-router";
 import { useAppSelector } from "@/lib/hooks/AppHooks";
 
 import { Button } from "@/components/atoms/shadCN/button";
-import { ProfileSheet } from "../molecules/ProfileSheet";
+import { ProfileSheet } from "@/components/molecules/profile/ProfileSheet";
 
 export default function Navbar() {
   const { user } = useAppSelector((s) => s.auth);

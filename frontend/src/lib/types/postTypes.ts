@@ -3,7 +3,6 @@ export interface Post {
   title: string;
   content: string;
   summary: string;
-  message: string;
   keywords: string[];
   tags: string[];
   slug: string;

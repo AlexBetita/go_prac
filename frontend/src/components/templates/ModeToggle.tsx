@@ -7,7 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/atoms/shadCN/dropdown-menu";
-import { useTheme } from "@/components/templates/theme-provider";
+import { useTheme } from "@/components/templates/ThemeProvider";
 
 export function ModeToggle() {
   const { setTheme } = useTheme();

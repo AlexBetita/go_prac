@@ -3,12 +3,12 @@ package models
 import "go.mongodb.org/mongo-driver/bson/primitive"
 
 type Post struct {
-	ID          primitive.ObjectID   `bson:"_id,omitempty"    json:"id"`
+	ID          primitive.ObjectID   `bson:"_id,omitempty"    json:"-"`
 	UserID      primitive.ObjectID   `bson:"user_id"          json:"-"`
 	Title       string               `bson:"title"            json:"title"`
 	Content     string               `bson:"content"          json:"content"`
 	Summary     string               `bson:"summary"          json:"summary"`
-	Message     string               `bson:"message"          json:"message"`
+	Message     string               `bson:"message"          json:"-"`
 	Keywords    []string             `bson:"keywords"         json:"keywords"`
 	Tags        []string             `bson:"tags"             json:"tags"`
 	Slug        string               `bson:"slug"             json:"slug"`

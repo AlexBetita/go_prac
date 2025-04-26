@@ -3,7 +3,7 @@ import { renderToString } from "react-dom/server";
 import { StaticRouter } from "react-router";
 import { Provider } from "react-redux";
 import { store } from "@/lib/store";
-import { ThemeProvider } from "@/components/templates/theme-provider";
+import { ThemeProvider } from "@/components/templates/ThemeProvider";
 import App from "@/pages/App";
 
 export function render(url: string, initialData: any) {
