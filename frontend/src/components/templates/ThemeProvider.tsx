@@ -1,30 +1,6 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  ReactNode,
-} from "react";
-
-type Theme = "dark" | "light" | "system";
-
-interface ThemeProviderProps {
-  children: ReactNode;
-  defaultTheme?: Theme;
-  storageKey?: string;
-}
-
-interface ThemeProviderState {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
-}
-
-const initialState: ThemeProviderState = {
-  theme: "system",
-  setTheme: () => {},
-};
-
-const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
+import { ThemeProviderContext } from "@/lib/context/ThemeContext";
+import { ThemeProviderProps, Theme } from "@/lib/types/generalTypes";
+import { useEffect, useState } from "react";
 
 export function ThemeProvider({
   children,
@@ -51,8 +27,8 @@ export function ThemeProvider({
     try {
       window.localStorage.setItem(storageKey, theme);
     } catch (e) {
-	  console.log(e)
-	}
+      console.log(e);
+    }
 
     const root = window.document.documentElement;
     root.classList.remove("light", "dark");
@@ -66,7 +42,6 @@ export function ThemeProvider({
     }
   }, [theme, storageKey, isBrowser]);
 
-
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
   };
@@ -76,12 +51,4 @@ export function ThemeProvider({
       {children}
     </ThemeProviderContext.Provider>
   );
-}
-
-export function useTheme() {
-  const context = useContext(ThemeProviderContext);
-  if (!context) {
-    throw new Error("useTheme must be used within a ThemeProvider");
-  }
-  return context;
 }

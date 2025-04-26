@@ -1,5 +1,5 @@
 import { Props } from "../types/generalTypes";
-import { InitialDataContext } from "./initialDataContext";
+import { InitialDataContext } from "../context/InitialDataContext";
 
 export function InitialDataContextProvider({
   children,

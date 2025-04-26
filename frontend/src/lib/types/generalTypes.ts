@@ -12,3 +12,22 @@ export type Props = {
 export interface ExtendedAppProps extends AppProps {
   children?: ReactNode;
 }
+
+export type Theme = "dark" | "light" | "system";
+
+export interface ThemeProviderProps {
+  children: ReactNode;
+  defaultTheme?: Theme;
+  storageKey?: string;
+}
+
+export interface ThemeProviderState {
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
+}
+
+export interface SidebarContextType {
+  open: boolean;
+  toggle: () => void;
+  close: () => void;
+}
