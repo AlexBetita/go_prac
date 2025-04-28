@@ -1,22 +1,39 @@
 import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
+import { hydrateRoot, createRoot } from "react-dom/client";
+import { BrowserRouter } from "react-router";
 import { Provider } from "react-redux";
-
-import AppRoutes from "@/routes/BaseRoutes";
-import { persistor, store } from "@/lib/store";
-import { ThemeProvider } from "@/components/templates/theme-provider"
-
-import "@/styles/globals.css";
 import { PersistGate } from "redux-persist/integration/react";
 
-createRoot(document.getElementById("root")!).render(
-	<StrictMode>
-		<Provider store={store}>
-			<ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-				<PersistGate loading={null} persistor={persistor}>
-			    	<AppRoutes />
-				</PersistGate>
-            </ThemeProvider>
-		</Provider>
-	</StrictMode>
+import { store, persistor } from "@/lib/store";
+import { ThemeProvider } from "@/components/templates/ThemeProvider";
+
+import "@/styles/globals.css";
+
+import BaseRoutes from "./routes/BaseRoutes";
+import { AuthProvider } from "./lib/providers/AuthProvider";
+import { SidebarProvider } from "./lib/providers/SidebarProvider";
+
+const rootElement = document.getElementById("root")!;
+const AppTree = (
+  <StrictMode>
+    <Provider store={store}>
+      <AuthProvider>
+        <SidebarProvider>
+          <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+            <PersistGate loading={null} persistor={persistor}>
+              <BrowserRouter>
+                <BaseRoutes />
+              </BrowserRouter>
+            </PersistGate>
+          </ThemeProvider>
+        </SidebarProvider>
+      </AuthProvider>
+    </Provider>
+  </StrictMode>
 );
+
+if (rootElement.hasChildNodes()) {
+  hydrateRoot(rootElement, AppTree);
+} else {
+  createRoot(rootElement).render(AppTree);
+}

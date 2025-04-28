@@ -15,7 +15,7 @@ type RelatedPostsPayload struct {
 
 type SlimPost struct {
     Slug      string `json:"slug"`
-    Topic     string `json:"topic"`
+    Title     string `json:"title"`
     Views     int64    `json:"views"`
     CreatedBy string `json:"created_by"`
 }
@@ -65,7 +65,7 @@ func relatedPostsHandler(ctx context.Context, raw json.RawMessage) (any, error) 
 	for i, p := range posts {
 		slims[i] = SlimPost{
 			Slug:      p.Slug,
-			Topic:     p.Topic,
+			Title:     p.Title,
 			Views:     p.Views,
 			CreatedBy: p.CreatedBy,
 		}

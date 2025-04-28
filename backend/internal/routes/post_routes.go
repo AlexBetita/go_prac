@@ -9,5 +9,5 @@ func MountPostRoutes(r chi.Router,
 	postH *handlers.PostHandler,
 ) {
 	 r.Get("/posts/search", postH.SearchPosts)
-	r.Get("/posts/{id}", postH.GetPostsByID)
+	r.Get("/posts/{identifier}", postH.GetPost)
 }

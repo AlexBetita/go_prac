@@ -1,4 +1,6 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
+import { AxiosError } from "axios";
+
 import { sendBotMessage } from "./api";
 import { AuthState } from "@/lib/types/authTypes";
 import { BotEntry, BotInteractionResponseTypes, BotResponseType } from "@/lib/types/botTypes";
@@ -25,7 +27,8 @@ export const chatWithBot = createAsyncThunk<
         type: botRes.type as BotEntry["type"],
         response: botRes.response,
       };
-  } catch (err: any) {
-    return rejectWithValue(err.response?.data || err.message);
+  } catch (e: unknown) {
+    const err = e as AxiosError<{ message?: string }>;
+    return rejectWithValue(err.response?.data?.message || err.message);
   }
 });

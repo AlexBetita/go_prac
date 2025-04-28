@@ -1,5 +1,5 @@
-import ChatBox from "../molecules/ChatBox";
-import ChatResponse from "../molecules/ChatResponse";
+import ChatBox from "../molecules/chat/ChatBox";
+import ChatResponse from "../molecules/chat/ChatResponse";
 import { useAppSelector } from "@/lib/hooks/AppHooks";
 
 export default function ChatPage() {

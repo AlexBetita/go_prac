@@ -40,8 +40,6 @@ export default function ProfilePage() {
           </CardHeader>
           <CardContent className="space-y-4 text-sm text-muted-foreground">
             <div className="grid grid-cols-2 gap-y-3">
-              <span className="font-medium text-foreground">ID:</span>
-              <span>{user.id}</span>
               <span className="font-medium text-foreground">Email:</span>
               <span>{user.email}</span>
               <span className="font-medium text-foreground">Provider:</span>

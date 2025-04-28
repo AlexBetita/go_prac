@@ -108,7 +108,7 @@ func (s *BotService) GenerateRequest(
 
 				Please format it as follows:
 
-				1. Keep only these fields: slug, topic, views, created_by.
+				1. Keep only these fields: slug, title, views, created_by.
 				2. Start with a short, friendly intro (e.g. “Hey there! I found some posts you might like…”).
 				3. Use **clean, well-formatted Markdown tables**. One table for relevant posts, another for not relevant.
 				4. Use meaningful section headings like "### 🚀 Programming Posts" and "### 🌴 Other Interesting Reads".

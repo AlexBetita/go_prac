@@ -16,6 +16,7 @@ type PostRepository interface {
 	FindByID(ctx context.Context, id primitive.ObjectID) (*models.Post, error)
 	Search(ctx context.Context, query string, limit int64) ([]*models.Post, error)
 	VectorSearch(ctx context.Context, vector []float32, limit int64) ([]*models.Post, error)
+    FindBySlug(ctx context.Context, slug string) (*models.Post, error)
 }
 
 type mongoPostRepository struct{ coll *mongo.Collection }
@@ -60,7 +61,7 @@ func (r *mongoPostRepository) Search(ctx context.Context, query string, limit in
                             Key: "text",
                             Value: bson.D{
                                 {Key: "query", Value: query},
-                                {Key: "path",  Value: bson.A{"topic", "content", "summary", "keywords", "tags"}},
+                                {Key: "path",  Value: bson.A{"title", "content", "summary", "keywords", "tags"}},
                             },
                         }},
                     }},
@@ -107,4 +108,18 @@ func (r *mongoPostRepository) aggregate(ctx context.Context, pipeline mongo.Pipe
         return nil, err
     }
     return out, nil
+}
+
+func (r *mongoPostRepository) FindBySlug(
+    ctx context.Context,
+    slug string,
+) (*models.Post, error) {
+    var p models.Post
+    err := r.coll.FindOneAndUpdate(
+        ctx,
+        bson.M{"slug": slug},
+        bson.M{"$inc": bson.M{"views": 1}},
+        options.FindOneAndUpdate().SetReturnDocument(options.After),
+    ).Decode(&p)
+    return &p, err
 }

@@ -58,7 +58,7 @@ func TestCreatePost(t *testing.T) {
 
 	post := &models.Post{
 		UserID:     primitive.NewObjectID(),
-		Topic:      "Unit Testing in Go",
+		Title:      "Unit Testing in Go",
 		Content:    "Here's why unit tests are powerful.",
 		Summary:    "Testing Go applications",
 		Message:    "make a post about testing",
@@ -72,7 +72,7 @@ func TestCreatePost(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotEmpty(t, post.ID)
-	assert.Equal(t, "Unit Testing in Go", post.Topic)
+	assert.Equal(t, "Unit Testing in Go", post.Title)
 }
 
 func TestFindPostByID(t *testing.T) {
@@ -81,7 +81,7 @@ func TestFindPostByID(t *testing.T) {
 
 	post := &models.Post{
 		UserID:  primitive.NewObjectID(),
-		Topic:   "Testing FindByID",
+		Title:   "Testing FindByID",
 		Content: "We want to ensure this is retrievable.",
 		Slug:    "testing-findbyid",
 	}
