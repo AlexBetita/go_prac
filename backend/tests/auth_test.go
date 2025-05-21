@@ -17,6 +17,11 @@ type mockRepo struct {
 	users map[string]*models.User
 }
 
+// AddProvider implements repositories.UserRepository.
+func (m *mockRepo) AddProvider(ctx context.Context, id primitive.ObjectID, provider string) error {
+	panic("unimplemented")
+}
+
 func (m *mockRepo) Create(ctx context.Context, user *models.User) error {
 	if m.users == nil {
 		m.users = make(map[string]*models.User)

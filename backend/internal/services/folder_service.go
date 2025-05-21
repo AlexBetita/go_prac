@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/AlexBetita/go_prac/internal/models"
@@ -12,10 +13,17 @@ import (
 
 type FolderService struct {
 	repo repositories.FolderRepository
+	interactionRepo repositories.InteractionRepository
+	messageRepo repositories.MessageRepository
 }
 
-func NewFolderService(repo repositories.FolderRepository) *FolderService {
-	return &FolderService{repo: repo}
+func NewFolderService(folderRepo repositories.FolderRepository, interactionRepo repositories.InteractionRepository,
+	messageRepo repositories.MessageRepository) *FolderService {
+	return &FolderService{
+		repo:            folderRepo,
+		interactionRepo: interactionRepo,
+		messageRepo: messageRepo,
+	}
 }
 
 func (s *FolderService) CreateFolder(ctx context.Context, folder *models.Folder) error {
@@ -37,4 +45,40 @@ func (s *FolderService) GetAllFolders(ctx context.Context, userID primitive.Obje
 
 func (s *FolderService) GetFolder(ctx context.Context, id primitive.ObjectID) (*models.Folder, error) {
 	return s.repo.FindOne(ctx, id)
+}
+
+func (s *FolderService) GetFoldersPaginated(ctx context.Context, userID primitive.ObjectID, limit, skip int) ([]*models.Folder, int64, error) {
+	return s.repo.FindManyPaginated(ctx, bson.M{"created_by": userID}, limit, skip)
+}
+
+func (s *FolderService) DeleteFolder(ctx context.Context, id primitive.ObjectID) error {
+	return s.repo.Delete(ctx, id)
+}
+
+func (s *FolderService) DeleteInteractionsByFolder(ctx context.Context, folderID primitive.ObjectID) error {
+	if s.interactionRepo == nil || s.messageRepo == nil {
+		return errors.New("repositories not initialized")
+	}
+
+	// Get interaction IDs in this folder
+	interactionIDs, err := s.interactionRepo.FindByFolderID(ctx, folderID)
+	if err != nil {
+		return err
+	}
+
+	// Delete messages
+	if err := s.messageRepo.DeleteByInteractionIDs(ctx, interactionIDs); err != nil {
+		return err
+	}
+
+	// Delete interactions
+	return s.interactionRepo.DeleteByFolderID(ctx, folderID)
+}
+
+func (s *FolderService) ToggleFavorite(ctx context.Context, id primitive.ObjectID, value bool) error {
+	return s.repo.Update(ctx, id, bson.M{"favorite": value})
+}
+
+func (s *FolderService) GetFavoriteFolders(ctx context.Context, userID primitive.ObjectID) ([]*models.Folder, error) {
+	return s.repo.FindFavoritesByUser(ctx, userID)
 }

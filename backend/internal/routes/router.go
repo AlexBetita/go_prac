@@ -23,11 +23,12 @@ func NewRouter(cfg *config.Config, mongoClient *mongo.Client, oaClient *openai.C
 	postRepo := repositories.NewPostRepository(db)
 	interactionRepo := repositories.NewInteractionRepository(db)
 	folderRepo := repositories.NewFolderRepository(db)
+	messageRepo := repositories.NewMessageRepository(db)
 
 	authSvc  := services.NewAuthService(userRepo, cfg.JWTSecret)
 	botSvc   := services.NewBotService(postRepo, interactionRepo, oaClient)
 	postSvc := services.NewPostService(postRepo, oaClient)
-	folderSvc := services.NewFolderService(folderRepo)
+	folderSvc := services.NewFolderService(folderRepo, interactionRepo, messageRepo)
 
 	autH  := handlers.NewAuthHandler(authSvc)
 	botH := handlers.NewBotHandler(botSvc)
