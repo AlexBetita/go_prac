@@ -3,7 +3,8 @@ package services
 import (
 	"context"
 	"errors"
-    "fmt"
+	"fmt"
+	"time"
 
 	"github.com/AlexBetita/go_prac/internal/models"
 	"github.com/AlexBetita/go_prac/internal/repositories"
@@ -27,12 +28,18 @@ func NewAuthService(repo repositories.UserRepository, jwtSecret string) AuthServ
 }
 
 func (s *authService) Register(ctx context.Context, email, password string) (*models.User, error) {
-    _, err := s.repo.FindByEmail(ctx, email)
+    user, err := s.repo.FindByEmail(ctx, email)
     if err == nil {
-        return nil, errors.New("email already in use")
+        return nil, errors.New("We couldn't create your account")
     }
     hashed, _ := utils.HashPassword(password)
-    user := &models.User{Email: email, Password: hashed, Provider: "local"}
+    user = &models.User{
+		Email:     email,
+		Password:  hashed,
+		Providers: []string{"local"},
+		CreatedAt: time.Now().Unix(),
+		UpdatedAt: time.Now().Unix(),
+	}
     if err := s.repo.Create(ctx, user); err != nil {
         return nil, err
     }

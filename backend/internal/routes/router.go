@@ -22,21 +22,25 @@ func NewRouter(cfg *config.Config, mongoClient *mongo.Client, oaClient *openai.C
 	userRepo := repositories.NewUserRepository(db)
 	postRepo := repositories.NewPostRepository(db)
 	interactionRepo := repositories.NewInteractionRepository(db)
+	folderRepo := repositories.NewFolderRepository(db)
 
 	authSvc  := services.NewAuthService(userRepo, cfg.JWTSecret)
 	botSvc   := services.NewBotService(postRepo, interactionRepo, oaClient)
 	postSvc := services.NewPostService(postRepo, oaClient)
+	folderSvc := services.NewFolderService(folderRepo)
 
 	autH  := handlers.NewAuthHandler(authSvc)
 	botH := handlers.NewBotHandler(botSvc)
 	postH := handlers.NewPostHandler(postSvc)
+	folderH := handlers.NewFolderHandler(folderSvc)
 
 	authMW := middlewares.Auth(cfg.JWTSecret, authSvc)
 
 	r.Route("/api", func(api chi.Router) {
 		MountAuthRoutes(api, cfg, autH, userRepo, authMW)
 		MountBotRoutes(api, botH, authMW)
-		MountPostRoutes(api, postH)  
+		MountPostRoutes(api, postH)
+		MountFolderRoutes(api, folderH, authMW)
 	})
 
 	return r

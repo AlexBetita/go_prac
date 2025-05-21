@@ -70,7 +70,7 @@ func (h *GoogleHandler) Callback(w http.ResponseWriter, r *http.Request) {
     if err != nil {
         user = &models.User{
             Email:      userInfo.Email,
-            Provider:   "google",
+            Providers:  []string{"google"},
             ProviderID: userInfo.ID,
             CreatedAt:  time.Now().Unix(),
             UpdatedAt:  time.Now().Unix(),
@@ -79,6 +79,8 @@ func (h *GoogleHandler) Callback(w http.ResponseWriter, r *http.Request) {
             http.Error(w, "Failed to create user", http.StatusInternalServerError)
             return
         }
+    } else {
+        _ = h.repo.AddProvider(r.Context(), user.ID, "google")
     }
 
     jwtToken, _ := utils.GenerateJWT(user.ID.Hex(), h.jwtSecret)

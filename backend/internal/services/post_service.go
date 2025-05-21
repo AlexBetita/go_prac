@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/AlexBetita/go_prac/internal/bot"
 	"github.com/AlexBetita/go_prac/internal/models"
 	"github.com/AlexBetita/go_prac/internal/repositories"
 	openai "github.com/sashabaranov/go-openai"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"github.com/AlexBetita/go_prac/internal/bot"   
 )
 
 type PostService interface {
@@ -18,7 +18,7 @@ type PostService interface {
 }
 
 type postService struct {
-	repo      repositories.PostRepository
+	repo     repositories.PostRepository
 	oaClient *openai.Client
 }
 
@@ -34,12 +34,12 @@ func (s *postService) GetPost(ctx context.Context, identifier string) (*models.P
 			return nil, fmt.Errorf("failed to find post by ID %s: %w", oid.Hex(), err)
 		}
 	}
-	
+
 	post, err := s.repo.FindBySlug(ctx, identifier)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find post by slug '%s': %w", identifier, err)
 	}
-	
+
 	return post, nil
 }
 

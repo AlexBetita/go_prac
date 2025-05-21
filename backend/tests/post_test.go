@@ -27,6 +27,11 @@ type mockPostRepo struct {
 	posts map[primitive.ObjectID]*models.Post
 }
 
+// FindBySlug implements repositories.PostRepository.
+func (m *mockPostRepo) FindBySlug(ctx context.Context, slug string) (*models.Post, error) {
+	panic("unimplemented")
+}
+
 func (m *mockPostRepo) Create(ctx context.Context, post *models.Post) error {
 	if m.posts == nil {
 		m.posts = make(map[primitive.ObjectID]*models.Post)
@@ -57,15 +62,15 @@ func TestCreatePost(t *testing.T) {
 	repo := &mockPostRepo{}
 
 	post := &models.Post{
-		UserID:     primitive.NewObjectID(),
-		Title:      "Unit Testing in Go",
-		Content:    "Here's why unit tests are powerful.",
-		Summary:    "Testing Go applications",
-		Message:    "make a post about testing",
-		Slug:       "unit-testing-in-go",
-		Tags:       []string{"Tech", "Education"},
-		Keywords:   []string{"testing", "go", "unittest"},
-		CreatedBy:  "Tester",
+		UserID:    primitive.NewObjectID(),
+		Title:     "Unit Testing in Go",
+		Content:   "Here's why unit tests are powerful.",
+		Summary:   "Testing Go applications",
+		Message:   "make a post about testing",
+		Slug:      "unit-testing-in-go",
+		Tags:      []string{"Tech", "Education"},
+		Keywords:  []string{"testing", "go", "unittest"},
+		CreatedBy: "Tester",
 	}
 
 	err := repo.Create(context.Background(), post)
@@ -88,14 +93,13 @@ func TestFindPostByID(t *testing.T) {
 	err := repo.Create(context.Background(), post)
 	assert.NoError(t, err)
 
-	found, err := svc.GetPostsByID(context.Background(), post.ID.Hex())
+	found, err := svc.GetPost(context.Background(), post.ID.Hex())
 	assert.NoError(t, err)
 	assert.Equal(t, post.ID, found.ID)
 
-	_, err = svc.GetPostsByID(context.Background(), primitive.NewObjectID().Hex())
+	_, err = svc.GetPost(context.Background(), primitive.NewObjectID().Hex())
 	assert.Error(t, err)
 }
-
 
 func TestSearchByIndex_Unit(t *testing.T) {
 	repo := &mockPostRepo{}
@@ -115,12 +119,11 @@ func TestSearchByVector_Unit(t *testing.T) {
 	assert.Empty(t, results)
 }
 
-
 func setupIntegrationServer(t *testing.T) *httptest.Server {
 
 	mongoURI := os.Getenv("MONGO_URI")
-	dbName   := os.Getenv("DB_NAME")
-	oaKey    := os.Getenv("OPENAI_API_KEY")
+	dbName := os.Getenv("DB_NAME")
+	oaKey := os.Getenv("OPENAI_API_KEY")
 
 	cfg := &config.Config{
 		MongoURI:  mongoURI,

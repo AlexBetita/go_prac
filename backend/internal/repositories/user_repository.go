@@ -15,6 +15,7 @@ type UserRepository interface {
     Create(ctx context.Context, user *models.User) error
     FindByEmail(ctx context.Context, email string) (*models.User, error)
     FindByID(ctx context.Context, id primitive.ObjectID) (*models.User, error)
+    AddProvider(ctx context.Context, id primitive.ObjectID, provider string) error
 }
 
 type mongoUserRepository struct {
@@ -48,4 +49,13 @@ func (r *mongoUserRepository) FindByID(ctx context.Context, id primitive.ObjectI
         return nil, errors.New("user not found")
     }
     return &user, err
+}
+
+func (r *mongoUserRepository) AddProvider(ctx context.Context, id primitive.ObjectID, provider string) error {
+	update := bson.M{
+		"$addToSet": bson.M{"providers": provider},
+		"$set":      bson.M{"updated_at": time.Now().Unix()},
+	}
+	_, err := r.collection.UpdateByID(ctx, id, update)
+	return err
 }
