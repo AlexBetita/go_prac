@@ -31,6 +31,14 @@ func NewBotService(pRepo repositories.PostRepository,
         iaSvc: iaSvc, oaClient: oaClient}
 }
 
+func (s *BotService) PostRepo() repositories.PostRepository {
+    return s.pRepo
+}
+
+func (s *BotService) OpenAIClient() *openai.Client {
+    return s.oaClient
+}
+
 func (s *BotService) GenerateRequest(
 	ctx context.Context,
 	userID primitive.ObjectID,
@@ -225,49 +233,46 @@ func (s *BotService) GenerateRequestStream(
 	ctx context.Context,
 	userID primitive.ObjectID,
 	interactionID *primitive.ObjectID,
-	message string,
-	systemPrompt *string,
-) (stream *ssestream.Stream[openai.ChatCompletionChunk]) {
+	messages []openai.ChatCompletionMessageParamUnion,
+	plugins []string,
+) *ssestream.Stream[openai.ChatCompletionChunk] {
 
 	model := os.Getenv("OPENAI_MODEL")
 	if model == "" {
 		model = openai.ChatModelGPT4o
 	}
 
-	var prompt string
-	if systemPrompt != nil {
-		prompt = *systemPrompt
-	} else {
-		prompt = "You are pretty good at whatever you are requested to do."
-	}
-
 	ctx = context.WithValue(ctx, bot.CtxUserID, userID)
-	ctx = context.WithValue(ctx, bot.CtxInput, message)
+	ctx = context.WithValue(ctx, bot.CtxInput, "")
 	ctx = context.WithValue(ctx, bot.CtxRepo, s.pRepo)
 	ctx = context.WithValue(ctx, bot.CtxClient, s.oaClient)
 
-	tools := make([]openai.ChatCompletionToolParam, 0, len(bot.Registry))
-	for _, spec := range bot.Registry {
-		tools = append(tools, openai.ChatCompletionToolParam{
-			Function: openai.FunctionDefinitionParam{
-				Name:        spec.Definition.Name,
-				Description: openai.String(spec.Definition.Description),
-				Parameters:  spec.Definition.Parameters,
-			},
-		})
+	var tools []openai.ChatCompletionToolParam
+	if len(plugins) > 0 {
+		tools = make([]openai.ChatCompletionToolParam, 0, len(bot.Registry))
+		for _, spec := range bot.Registry {
+			for _, p := range plugins {
+				if p == spec.Definition.Name {
+					tools = append(tools, openai.ChatCompletionToolParam{
+						Function: openai.FunctionDefinitionParam{
+							Name:        spec.Definition.Name,
+							Description: openai.String(spec.Definition.Description),
+							Parameters:  spec.Definition.Parameters,
+						},
+					})
+				}
+			}
+		}
 	}
 
-	messages := []openai.ChatCompletionMessageParamUnion{
-		openai.SystemMessage(prompt),
-		openai.UserMessage(message),
-	}
-
-	stream = s.oaClient.Chat.Completions.NewStreaming(ctx, openai.ChatCompletionNewParams{
+	stream := s.oaClient.Chat.Completions.NewStreaming(ctx, openai.ChatCompletionNewParams{
 		Model:    model,
 		Messages: messages,
 		Tools:    tools,
 		Seed:     openai.Int(0),
 	})
+	
 
 	return stream
 }
+

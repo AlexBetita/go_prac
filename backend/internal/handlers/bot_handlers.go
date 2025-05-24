@@ -1,11 +1,15 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
+	"github.com/AlexBetita/go_prac/internal/bot"
 	"github.com/AlexBetita/go_prac/internal/middlewares"
 	"github.com/AlexBetita/go_prac/internal/models"
 	"github.com/AlexBetita/go_prac/internal/services"
@@ -201,8 +205,24 @@ func (h *BotHandler) ChatStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stream := h.service.GenerateRequestStream(r.Context(), user.ID, interactionOID, body.Message, body.SystemPrompt)
-	defer stream.Close()
+	var prompt string
+	if body.SystemPrompt != nil {
+		prompt = *body.SystemPrompt
+	} else {
+		prompt = `
+		Share a brief description of what you plan to do in 40 words.
+		You are pretty good at whatever you are requested to do. 
+		`
+	}
+
+	messages := []openai.ChatCompletionMessageParamUnion{
+		openai.SystemMessage(prompt),
+		openai.UserMessage(body.Message),
+	}
+
+	stream := h.service.GenerateRequestStream(r.Context(), user.ID, interactionOID, messages, 
+	[]string{"get_related_posts", 
+	"create_blog_post"})
 
 	acc := openai.ChatCompletionAccumulator{}
 
@@ -223,8 +243,126 @@ func (h *BotHandler) ChatStream(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if tool, ok := acc.JustFinishedToolCall(); ok {
-			args := tool.Arguments
-			fmt.Fprintf(w, "event: tool_call\ndata: %s\n\n", escapeSSE(args))
+			var toolStrOutput string
+			// Run the tool handler function to get output bytes
+			ctxWithValues := h.enrichContext(r.Context(), user.ID)
+
+			// Check if tool needs a follow up
+			if tool.Name == "get_related_posts" {
+				spec, found := bot.Registry[tool.Name]
+				if !found {
+					http.Error(w, "unknown tool", http.StatusInternalServerError)
+					return
+				}
+				
+				// Parse arguments JSON into raw message
+				args := json.RawMessage(tool.Arguments)
+				
+				out, err := spec.Handle(ctxWithValues, args)
+
+				if err != nil {
+					http.Error(w, fmt.Sprintf("tool handler error: %v", err), http.StatusInternalServerError)
+					return
+				}
+
+				payloadBytes, ok := out.([]byte)
+				if !ok {
+					http.Error(w, "invalid tool output type", http.StatusInternalServerError)
+					return
+				}
+
+				payloadStr := string(payloadBytes)
+				relatedPostsSystemMsg := openai.SystemMessage(`You just fetched related blog post data.
+
+				Please format it as follows:
+
+				1. Keep only these fields: slug, title, views, created_by.
+				2. Start with a short, friendly intro (e.g. “Hey there! I found some posts you might like…”).
+				3. Use **clean, well-formatted Markdown tables**. One table for relevant posts, another for not relevant.
+				4. Use meaningful section headings like "### 🚀 Programming Posts" and "### 🌴 Other Interesting Reads".
+				5. Keep the tone conversational but concise. Add a few light emojis for charm, but don’t overdo it.
+				6. Keep spacing and formatting neat for maximum clarity.
+				7. No explanations or bullet lists — only the intro and two tables.
+
+				Thanks!`)
+
+				followupMessages := []openai.ChatCompletionMessageParamUnion{
+					acc.Choices[0].Message.ToParam(),
+					openai.ToolMessage(payloadStr, acc.Choices[0].Message.ToolCalls[0].ID),
+					relatedPostsSystemMsg,
+					openai.UserMessage(body.Message),
+				}
+
+				followupStream := h.service.GenerateRequestStream(
+					r.Context(), user.ID, interactionOID,
+					followupMessages,
+					nil,
+				)
+
+				followupAcc := openai.ChatCompletionAccumulator{}
+
+				for followupStream.Next() {
+					followupChunk := followupStream.Current()
+					followupAcc.AddChunk(followupChunk)
+					if len(followupChunk.Choices) > 0 {
+						text := followupChunk.Choices[0].Delta.Content
+						if len(text) > 0 {
+							fmt.Fprintf(w, "event: followup_chunk\ndata: %s\n\n", escapeSSE(text))
+							flusher.Flush()
+						}
+					}
+				}
+
+				if err := followupStream.Err(); err != nil {
+					fmt.Fprintf(w, "event: error\ndata: %s\n\n", escapeSSE(err.Error()))
+					flusher.Flush()
+					return
+				}
+				finalContent, _ := followupAcc.JustFinishedContent()
+				toolStrOutput = string(finalContent)
+			} else {
+				spec, found := bot.Registry[tool.Name]
+				if !found {
+					http.Error(w, "unknown tool", http.StatusInternalServerError)
+					return
+				}
+				
+				// Parse arguments JSON into raw message
+				args := json.RawMessage(tool.Arguments)
+				out, err := spec.Handle(ctxWithValues, args)
+				if err != nil {
+					http.Error(w, fmt.Sprintf("tool handler error: %v", err), http.StatusInternalServerError)
+					return
+				}
+
+				switch v := out.(type) {
+				case []byte:
+					toolStrOutput = string(v)
+				case string:
+					toolStrOutput = v
+				default:
+					// Try to marshal to JSON if it's a struct or something else
+					b, err := json.Marshal(v)
+					if err != nil {
+						http.Error(w, "failed to marshal tool output", http.StatusInternalServerError)
+						return
+					}
+					toolStrOutput = string(b)
+				}
+
+			}
+
+			payloadMap := map[string]interface{}{
+				"index": tool.Index,
+				"name": tool.Name,
+				"arguments": json.RawMessage(tool.Arguments),
+				"content": toolStrOutput,
+			}
+			payloadBytes, _ := json.Marshal(payloadMap)
+			if _, err := fmt.Fprintf(w, "event: tool_call\ndata: %s\n\n", escapeSSE(string(payloadBytes))); err != nil {
+				log.Println("write error:", err)
+				return
+			}
 			flusher.Flush()
 		}
 
@@ -244,6 +382,12 @@ func (h *BotHandler) ChatStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if acc.Usage.TotalTokens > 0 {
+		tokenInt := acc.Usage.TotalTokens
+		tokenStr := strconv.FormatInt(tokenInt, 10)
+		fmt.Fprintf(w, "event: metadata\ndata: %s\n\n", escapeSSE(tokenStr))
+	}
+
 	// Send done event with final content
 	finalContent, _ := acc.JustFinishedContent()
 	finalJSON, _ := json.Marshal(map[string]string{"final": finalContent})
@@ -253,5 +397,16 @@ func (h *BotHandler) ChatStream(w http.ResponseWriter, r *http.Request) {
 
 // escapeSSE escapes newlines per SSE spec
 func escapeSSE(data string) string {
-	return strings.ReplaceAll(data, "\n", "\\n")
+	data = strings.ReplaceAll(data, "\\", "\\\\")
+	data = strings.ReplaceAll(data, "\n", "\\n")
+	data = strings.ReplaceAll(data, "\r", "\\r")
+	return data
+}
+
+func (h *BotHandler) enrichContext(ctx context.Context, userID primitive.ObjectID) context.Context {
+    ctx = context.WithValue(ctx, bot.CtxUserID, userID)
+    ctx = context.WithValue(ctx, bot.CtxRepo, h.service.PostRepo())
+    ctx = context.WithValue(ctx, bot.CtxClient, h.service.OpenAIClient())
+	ctx = context.WithValue(ctx, bot.CtxInput, "")
+    return ctx
 }
