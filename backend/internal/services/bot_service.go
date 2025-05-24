@@ -115,7 +115,7 @@ func (s *BotService) GenerateRequest(
 				UserContent:      message,
 				AssistantContent: finalContent,
 			}
-			fmt.Println(`IM HERE INSIDE BEFORE START OR APPEND! STREAM!`)
+
 			if _, err := s.iaSvc.StartOrAppendInteraction(ctx,
 				userID,
 				interactionID,
