@@ -28,12 +28,12 @@ func NewAuthService(repo repositories.UserRepository, jwtSecret string) AuthServ
 }
 
 func (s *authService) Register(ctx context.Context, email, password string) (*models.User, error) {
-    user, err := s.repo.FindByEmail(ctx, email)
-    if err == nil {
-        return nil, errors.New("We couldn't create your account")
-    }
+    _, err := s.repo.FindByEmail(ctx, email)
+	if err == nil {
+		return nil, errors.New("we couldn't create your account")
+	}
     hashed, _ := utils.HashPassword(password)
-    user = &models.User{
+    user := &models.User{
 		Email:     email,
 		Password:  hashed,
 		Providers: []string{"local"},
