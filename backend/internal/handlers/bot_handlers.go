@@ -210,6 +210,23 @@ func (h *BotHandler) ChatStream(w http.ResponseWriter, r *http.Request) {
 		chunk := stream.Current()
 		acc.AddChunk(chunk)
 
+		// When this fires, the current chunk value will not contain content data
+		if _, ok := acc.JustFinishedContent(); ok {
+			println()
+			println("finish-event: Content stream finished")
+		}
+
+		if refusal, ok := acc.JustFinishedRefusal(); ok {
+			println()
+			println("finish-event: refusal stream finished:", refusal)
+			println()
+		}
+		
+		// You can optionally check for JustFinishedToolCall and handle it here if you want
+		if tool, ok := acc.JustFinishedToolCall(); ok {
+			println("finish-event: tool call stream finished:", tool.Index, tool.Name, tool.Arguments)
+		}
+
 		if len(chunk.Choices) > 0 {
 			text := chunk.Choices[0].Delta.Content
 			if len(text) > 0 {
@@ -217,7 +234,7 @@ func (h *BotHandler) ChatStream(w http.ResponseWriter, r *http.Request) {
 				flusher.Flush()
 			}
 		}
-		// You can optionally check for JustFinishedToolCall and handle it here if you want
+		
 	}
 
 	if err := stream.Err(); err != nil {
