@@ -221,10 +221,11 @@ func (h *BotHandler) ChatStream(w http.ResponseWriter, r *http.Request) {
 			println("finish-event: refusal stream finished:", refusal)
 			println()
 		}
-		
-		// You can optionally check for JustFinishedToolCall and handle it here if you want
+
 		if tool, ok := acc.JustFinishedToolCall(); ok {
-			println("finish-event: tool call stream finished:", tool.Index, tool.Name, tool.Arguments)
+			args := tool.Arguments
+			fmt.Fprintf(w, "event: tool_call\ndata: %s\n\n", escapeSSE(args))
+			flusher.Flush()
 		}
 
 		if len(chunk.Choices) > 0 {
