@@ -1,6 +1,8 @@
 package routes
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/AlexBetita/go_prac/internal/config"
@@ -10,7 +12,7 @@ import (
 	"github.com/AlexBetita/go_prac/internal/services"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/sashabaranov/go-openai"
+	"github.com/openai/openai-go"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -26,14 +28,18 @@ func NewRouter(cfg *config.Config, mongoClient *mongo.Client, oaClient *openai.C
 	messageRepo := repositories.NewMessageRepository(db)
 
 	authSvc  := services.NewAuthService(userRepo, cfg.JWTSecret)
-	botSvc   := services.NewBotService(postRepo, interactionRepo, oaClient)
+	botSvc   := services.NewBotService(postRepo, interactionRepo, messageRepo, oaClient)
 	postSvc := services.NewPostService(postRepo, oaClient)
 	interactionSvc := services.NewInteractionService(interactionRepo, messageRepo)
 	folderSvc := services.NewFolderService(folderRepo, interactionRepo, messageRepo)
 	messageSvc := services.NewMessageService(messageRepo)
-
+	awsSvc, err := services.NewAWSService(context.Background())
+	if err != nil {
+		panic(fmt.Errorf("failed to initialize AWS service: %w", err))
+	}
+	
 	autH  := handlers.NewAuthHandler(authSvc)
-	botH := handlers.NewBotHandler(botSvc)
+	botH := handlers.NewBotHandler(botSvc, awsSvc)
 	postH := handlers.NewPostHandler(postSvc)
 	interactionH := handlers.NewInteractionHandler(interactionSvc)
 	folderH := handlers.NewFolderHandler(folderSvc)

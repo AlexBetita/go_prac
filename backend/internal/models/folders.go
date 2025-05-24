@@ -8,8 +8,6 @@ type Folder struct {
 	FolderContext   string             `bson:"folder_context" json:"folder_context"`
 	FolderDocuments []string           `bson:"folder_documents" json:"folder_documents"`
 	Metadata     map[string]interface{} `bson:"metadata" json:"metadata"`
-	DefaultModel    string             `bson:"default_model" json:"default_model"`
-	CurrentModel    string             `bson:"current_model" json:"current_model"`
 	CreatedBy       primitive.ObjectID `bson:"created_by" json:"created_by"`
 	Favorite        bool               `bson:"favorite" json:"favorite"`
 	CreatedAt       int64              `bson:"created_at" json:"created_at"`

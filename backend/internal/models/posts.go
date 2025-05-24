@@ -13,7 +13,7 @@ type Post struct {
 	Tags        []string             `bson:"tags"             json:"tags"`
 	Slug        string               `bson:"slug"             json:"slug"`
 	Views       int64                `bson:"views"            json:"views"`
-	Embeddings  []float32            `bson:"embeddings"       json:"-"`
+	Embeddings  []float64            `bson:"embeddings"       json:"-"`
 	CreatedBy   string				 `bson:"created_by"       json:"created_by"`
 	CreatedAt   int64                `bson:"created_at"       json:"created_at"`
 	UpdatedAt   int64                `bson:"updated_at"       json:"-"`

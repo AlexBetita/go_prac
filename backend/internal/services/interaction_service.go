@@ -24,6 +24,8 @@ func (s *InteractionService) StartOrAppendInteraction(
 	userID primitive.ObjectID,
 	interactionID *primitive.ObjectID,
 	message *models.Message,
+	model string,
+	systemPrompt *string,
 ) (*models.Interaction, error) {
 	var interaction *models.Interaction
 	var err error
@@ -36,6 +38,12 @@ func (s *InteractionService) StartOrAppendInteraction(
 			Tags:        []string{},
 			Favorite:    false,
 			Metadata:    map[string]interface{}{},
+			DefaultModel: model,
+			CurrentModel: model,
+			SystemPrompt: func() string {
+			if systemPrompt != nil { return *systemPrompt }
+				return "You are pretty good at whatever you are requested to do."
+			}(),
 			CreatedAt:   time.Now().Unix(),
 			UpdatedAt:   time.Now().Unix(),
 		}
@@ -58,7 +66,6 @@ func (s *InteractionService) StartOrAppendInteraction(
 	if err := s.messageRepo.Create(ctx, message); err != nil {
 		return nil, err
 	}
-
 	return interaction, nil
 }
 

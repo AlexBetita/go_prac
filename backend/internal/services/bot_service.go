@@ -2,180 +2,377 @@ package services
 
 import (
 	"context"
-	// "encoding/json"
-	// "errors"
-	// "os"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
 
-	// "github.com/AlexBetita/go_prac/internal/bot"
+	"github.com/AlexBetita/go_prac/internal/bot"
 	"github.com/AlexBetita/go_prac/internal/models"
 	"github.com/AlexBetita/go_prac/internal/repositories"
-	openai "github.com/sashabaranov/go-openai"
+	openai "github.com/openai/openai-go"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type BotService struct {
 	pRepo   repositories.PostRepository
-	iaRepo repositories.InteractionRepository
+	iaRepo  repositories.InteractionRepository
+	iaSvc   *InteractionService
 	oaClient *openai.Client
 }
 
 func NewBotService(pRepo repositories.PostRepository,
 	iaRepo repositories.InteractionRepository,
+	msgRepo repositories.MessageRepository,
 	oaClient *openai.Client) *BotService {
-	return &BotService{pRepo: pRepo, iaRepo: iaRepo, oaClient: oaClient}
+	iaSvc := NewInteractionService(iaRepo, msgRepo)
+	return &BotService{pRepo: pRepo, iaRepo: iaRepo,
+        iaSvc: iaSvc, oaClient: oaClient}
 }
 
 func (s *BotService) GenerateRequest(
 	ctx context.Context,
 	userID primitive.ObjectID,
+	interactionID *primitive.ObjectID,
 	message string,
+	systemPrompt *string,
+	stream bool,
 ) (*models.BotResponse, error) {
+	
+	model := os.Getenv("OPENAI_MODEL")
+	if model == "" {
+		model = openai.ChatModelGPT4o
+	}
 
-	// model := os.Getenv("OPENAI_MODEL")
-	// if model == "" {
-	// 	model = openai.GPT4o20241120
-	// }
+	var prompt string
+	if systemPrompt != nil {
+		prompt = *systemPrompt
+	} else {
+		prompt = "You are pretty good at whatever you are requested to do."
+	}
 
-	// systemMsg := openai.ChatCompletionMessage{
-    //     Role:    openai.ChatMessageRoleSystem,
-    //     Content: "You are pretty good at whatever you are requested to do.",
-    // }
-    // userMsg := openai.ChatCompletionMessage{
-    //     Role:    openai.ChatMessageRoleUser,
-    //     Content: message,
-    // }
+	ctx = context.WithValue(ctx, bot.CtxUserID, userID)
+	ctx = context.WithValue(ctx, bot.CtxInput, message)
+	ctx = context.WithValue(ctx, bot.CtxRepo, s.pRepo)
+	ctx = context.WithValue(ctx, bot.CtxClient, s.oaClient)
 
-	// ctx = context.WithValue(ctx, bot.CtxUserID, userID)
-	// ctx = context.WithValue(ctx, bot.CtxInput, message)
-	// ctx = context.WithValue(ctx, bot.CtxRepo, s.pRepo)
-	// ctx = context.WithValue(ctx, bot.CtxClient, s.oaClient)
+	// Build tools param from registry
+	tools := make([]openai.ChatCompletionToolParam, 0, len(bot.Registry))
+	for _, spec := range bot.Registry {
+		tools = append(tools, openai.ChatCompletionToolParam{
+			Function: openai.FunctionDefinitionParam{
+				Name:        spec.Definition.Name,
+				Description: openai.String(spec.Definition.Description),
+				Parameters:  spec.Definition.Parameters,
+			},
+		})
+	}
 
-	// tools := make([]openai.Tool, 0, len(bot.Registry))
-	// for _, spec := range bot.Registry {
-	// 	tools = append(tools, openai.Tool{
-	// 		Type:     openai.ToolTypeFunction,
-	// 		Function: &spec.Definition,
-	// 	})
-	// }
+	// Initial messages slice with system + user
+	messages := []openai.ChatCompletionMessageParamUnion{
+		openai.SystemMessage(prompt),
+		openai.UserMessage(message),
+	}
 
-	// firstReq := openai.ChatCompletionRequest{
-    //     Model:      model,
-    //     Messages:   []openai.ChatCompletionMessage{systemMsg, userMsg},
-    //     Tools:      tools,
-    //     ToolChoice: "auto",
-    // }
+	// If streaming requested
+	if stream {
+		stream := s.oaClient.Chat.Completions.NewStreaming(ctx, openai.ChatCompletionNewParams{
+			Model:    model,
+			Messages: messages,
+			Tools:    tools,
+			Seed:     openai.Int(0),
+		})
 
-    // firstResp, err := s.oaClient.CreateChatCompletion(ctx, firstReq)
-    // if err != nil {
-    //     return nil, err
-    // }
+		acc := openai.ChatCompletionAccumulator{}
+		var finalContent string
+		var finalToolCall openai.FinishedChatCompletionToolCall
+		var haveFinalToolCall bool
 
-    // if len(firstResp.Choices) == 0 {
-    //     return nil, errors.New("no choices returned by OpenAI")
-    // }
+		for stream.Next() {
+			chunk := stream.Current()
+			acc.AddChunk(chunk)
 
-    // msg := firstResp.Choices[0].Message
+			if content, ok := acc.JustFinishedContent(); ok {
+				finalContent = content
+			}
+			if toolCall, ok := acc.JustFinishedToolCall(); ok {
+				finalToolCall = toolCall
+				haveFinalToolCall = true
+				break
+			}
 
-	// var finalOut interface{}
+			// Here you can optionally send partial chunk.Choices[0].Delta.Content to client via websockets or SSE
+		}
 
-	// if len(msg.ToolCalls) == 0 {
-	// 	finalOut = &models.Interaction{
-	// 		UserID:      userID,
-	// 		UserMessage: message,
-	// 		BotResponse: msg.Content,
-	// 	}
-	// } else {
-	// 	call := msg.ToolCalls[0]
-	// 	spec, ok := bot.Registry[call.Function.Name]
-	// 	if !ok {
-	// 		return nil, errors.New("unknown function: " + call.Function.Name)
-	// 	}
+		if err := stream.Err(); err != nil {
+			return nil, err
+		}
 
-	// 	rawIn := json.RawMessage(call.Function.Arguments)
-	// 	out, err := spec.Handle(ctx, rawIn)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
+		// If no tool call was detected, just save finalContent and return
+		if !haveFinalToolCall  {
+			messageModel := &models.Message{
+				UserID:           userID,
+				UserContent:      message,
+				AssistantContent: finalContent,
+			}
+			fmt.Println(`IM HERE INSIDE BEFORE START OR APPEND! STREAM!`)
+			if _, err := s.iaSvc.StartOrAppendInteraction(ctx,
+				userID,
+				interactionID,
+				messageModel,
+				model,
+				&prompt,
+			); err != nil {
+				return nil, err
+			}
 
-	// 	finalOut = out
+			return &models.BotResponse{
+				Type:     "interaction",
+				Response: finalContent,
+			}, nil
+		}
 
-	// 	if call.Function.Name == "get_related_posts" {
-	// 		payloadStr := string(out.([]byte))
+		// Handle tool call similar to non-streaming branch
+		spec, ok := bot.Registry[finalToolCall.Name]
+		if !ok {
+			return nil, fmt.Errorf("unknown function: %s", finalToolCall.Name)
+		}
 
-	// 		relatedPostsSystemMsg := openai.ChatCompletionMessage{
-	// 			Role: openai.ChatMessageRoleSystem,
-	// 			Content: `You just fetched related blog post data.
+		var args json.RawMessage = []byte(finalToolCall.Arguments)
+		out, err := spec.Handle(ctx, args)
+		if err != nil {
+			return nil, err
+		}
 
-	// 			Please format it as follows:
+		switch finalToolCall.Name {
+		case "get_related_posts":
+			payloadBytes, ok := out.([]byte)
+			if !ok {
+				return nil, errors.New("expected []byte output from get_related_posts handler")
+			}
+			payloadStr := string(payloadBytes)
 
-	// 			1. Keep only these fields: slug, title, views, created_by.
-	// 			2. Start with a short, friendly intro (e.g. “Hey there! I found some posts you might like…”).
-	// 			3. Use **clean, well-formatted Markdown tables**. One table for relevant posts, another for not relevant.
-	// 			4. Use meaningful section headings like "### 🚀 Programming Posts" and "### 🌴 Other Interesting Reads".
-	// 			5. Keep the tone conversational but concise. Add a few light emojis for charm, but don’t overdo it.
-	// 			6. Keep spacing and formatting neat for maximum clarity.
-	// 			7. No explanations or bullet lists — only the intro and two tables.
+			relatedPostsSystemMsg := openai.SystemMessage(`You just fetched related blog post data.
 
-	// 			Thanks!`,
-	// 		}
+			Please format it as follows:
 
-	// 		followupReq := openai.ChatCompletionRequest{
-	// 			Model: model,
-	// 			Messages: []openai.ChatCompletionMessage{
-	// 				relatedPostsSystemMsg,
-	// 				userMsg,
-	// 				{
-	// 					Role:    openai.ChatMessageRoleFunction,
-	// 					Name:    call.Function.Name,
-	// 					Content: payloadStr,
-	// 				},
-	// 			},
-	// 		}
+			1. Keep only these fields: slug, title, views, created_by.
+			2. Start with a short, friendly intro (e.g. “Hey there! I found some posts you might like…”).
+			3. Use **clean, well-formatted Markdown tables**. One table for relevant posts, another for not relevant.
+			4. Use meaningful section headings like "### 🚀 Programming Posts" and "### 🌴 Other Interesting Reads".
+			5. Keep the tone conversational but concise. Add a few light emojis for charm, but don’t overdo it.
+			6. Keep spacing and formatting neat for maximum clarity.
+			7. No explanations or bullet lists — only the intro and two tables.
 
-	// 		finalResp, err := s.oaClient.CreateChatCompletion(ctx, followupReq)
-	// 		if err != nil {
-	// 			return nil, err
-	// 		}
-	// 		if len(finalResp.Choices) == 0 {
-	// 			return nil, errors.New("no choices on follow-up call")
-	// 		}
+			Thanks!`)
 
-	// 		finalOut = finalResp.Choices[0].Message.Content
-	// 		finalStr, ok := finalOut.(string)
-	// 		if !ok {
-	// 			return nil, errors.New("finalOut is not a string")
-	// 		}
-	// 		saveRep := &models.Interaction{
-	// 			UserID:      userID,
-	// 			UserMessage: message,
-	// 			BotResponse: finalStr,
-	// 		}
-	// 		if err := s.iaRepo.Create(ctx, saveRep); err != nil {
-	// 			return nil, err
-	// 		}
-	// 	}
-	// }
+			messages = append(messages,
+				acc.Choices[0].Message.ToParam(),          // assistant message with tool call
+				openai.ToolMessage(payloadStr, finalToolCall.ID), // immediately respond with tool message
+				relatedPostsSystemMsg,                      // then system message with formatting instructions
+				openai.UserMessage(message),               // then user message (your original prompt)
+			)
 
-	// switch v := finalOut.(type) {
-	// case *models.Post:
-	// 	return &models.BotResponse{Type: "post", Response: v}, nil
-	// case *models.Interaction:
-	// 	if err := s.iaRepo.Create(ctx, v); err != nil {
-	// 		return nil, err
-	// 	}
-	// 	return &models.BotResponse{
-	// 		Type:     "interaction",
-	// 		Response: v.BotResponse,
-	// 	}, nil
-	// case string:
-	// 	return &models.BotResponse{
-	// 		Type:     "related_posts",
-	// 		Response: v,
-	// 	}, nil
-	// case *models.BotResponse:
-	// 	return v, nil
-	// default:
-	// 	return nil, errors.New("unsupported type returned")
-	// }
-	return nil, nil
+			finalResp, err := s.oaClient.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
+				Model:    model,
+				Messages: messages,
+			})
+			if err != nil {
+				return nil, err
+			}
+			if len(finalResp.Choices) == 0 {
+				return nil, errors.New("no choices returned on follow-up")
+			}
+
+			finalMsg := finalResp.Choices[0].Message.Content
+
+			messageModel := &models.Message{
+				UserID:           userID,
+				UserContent:      message,
+				AssistantContent: finalMsg,
+			}
+			if _, err := s.iaSvc.StartOrAppendInteraction(ctx,
+				userID,
+				interactionID,
+				messageModel,
+				model,
+				&prompt,
+			); err != nil {
+				return nil, err
+			}
+
+			return &models.BotResponse{
+				Type:     "related_posts",
+				Response: finalMsg,
+			}, nil
+
+		default:
+			switch v := out.(type) {
+			case string:
+				return &models.BotResponse{Type: "string", Response: v}, nil
+			case *models.Message:
+				if _, err := s.iaSvc.StartOrAppendInteraction(ctx,
+					userID,
+					interactionID,
+					v,
+					model,
+					&prompt,
+				); err != nil {
+					return nil, err
+				}
+				return &models.BotResponse{Type: "interaction", Response: v.AssistantContent}, nil
+			case *models.Post:
+				return &models.BotResponse{Type: "post", Response: v}, nil
+			default:
+				return nil, errors.New("unsupported function return type")
+			}
+		}
+	}
+
+	// Prepare first chat request params
+	params := openai.ChatCompletionNewParams{
+		Model:  model,
+		Messages: messages,
+		Tools:  tools,
+		Seed:   openai.Int(0),
+	}
+
+	// Send first request
+	firstResp, err := s.oaClient.Chat.Completions.New(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	if len(firstResp.Choices) == 0 {
+		return nil, errors.New("no choices returned by OpenAI")
+	}
+
+	choiceMsg := firstResp.Choices[0].Message
+	toolCalls := choiceMsg.ToolCalls
+
+	// No function calls? Return bot response as interaction
+	if len(toolCalls) == 0 {
+		messageModel := &models.Message{
+			UserID:      userID,
+			UserContent: message,
+			AssistantContent: choiceMsg.Content,
+		}
+		if _, err := s.iaSvc.StartOrAppendInteraction(ctx, 
+			userID, 
+			interactionID,
+			messageModel,
+			model,
+			&prompt,
+			); err != nil {
+			return nil, err
+		}
+		return &models.BotResponse{
+			Type:     "interaction",
+			Response: choiceMsg.Content,
+		}, nil
+	}
+
+	// There is a tool call — handle first tool call only for now
+	call := toolCalls[0]
+	spec, ok := bot.Registry[call.Function.Name]
+	if !ok {
+		return nil, fmt.Errorf("unknown function: %s", call.Function.Name)
+	}
+
+	// Parse tool call arguments
+	var args json.RawMessage = []byte(call.Function.Arguments)
+	out, err := spec.Handle(ctx, args)
+	if err != nil {
+		return nil, err
+	}
+	
+	switch call.Function.Name {
+	case "get_related_posts":
+		payloadBytes, ok := out.([]byte)
+		if !ok {
+			return nil, errors.New("expected []byte output from get_related_posts handler")
+		}
+		payloadStr := string(payloadBytes)
+
+		// System message guiding formatting
+		relatedPostsSystemMsg := openai.SystemMessage(`You just fetched related blog post data.
+
+		Please format it as follows:
+
+		1. Keep only these fields: slug, title, views, created_by.
+		2. Start with a short, friendly intro (e.g. “Hey there! I found some posts you might like…”).
+		3. Use **clean, well-formatted Markdown tables**. One table for relevant posts, another for not relevant.
+		4. Use meaningful section headings like "### 🚀 Programming Posts" and "### 🌴 Other Interesting Reads".
+		5. Keep the tone conversational but concise. Add a few light emojis for charm, but don’t overdo it.
+		6. Keep spacing and formatting neat for maximum clarity.
+		7. No explanations or bullet lists — only the intro and two tables.
+
+		Thanks!`)
+
+		// Append function response message
+		baseMessages := []openai.ChatCompletionMessageParamUnion{
+			choiceMsg.ToParam(),
+			openai.ToolMessage(payloadStr, call.ID),
+			relatedPostsSystemMsg,
+			openai.UserMessage(message),
+		}
+
+		// Second request with function result
+		followupParams := openai.ChatCompletionNewParams{
+			Model:    model,
+			Messages: baseMessages,
+		}
+
+		finalResp, err := s.oaClient.Chat.Completions.New(ctx, followupParams)
+		if err != nil {
+			return nil, err
+		}
+		if len(finalResp.Choices) == 0 {
+			return nil, errors.New("no choices returned on follow-up")
+		}
+
+		finalMsg := finalResp.Choices[0].Message.Content
+
+		// Save the interaction with final formatted response
+		messageModel := &models.Message{
+			UserID:      userID,
+			UserContent: message,
+			AssistantContent: finalMsg,
+		}
+		if _, err := s.iaSvc.StartOrAppendInteraction(ctx, 
+			userID, 
+			interactionID,
+			messageModel,
+			model,
+			&prompt,
+			); err != nil {
+			return nil, err
+		}
+
+		return &models.BotResponse{
+			Type:     "related_posts",
+			Response: finalMsg,
+		}, nil
+
+	default:
+		switch v := out.(type) {
+		case string:
+			return &models.BotResponse{Type: "string", Response: v}, nil
+		case *models.Message:
+			if _, err := s.iaSvc.StartOrAppendInteraction(ctx, 
+				userID, 
+				interactionID,
+				v,
+				model,
+				&prompt,
+				); err != nil {
+				return nil, err
+			}
+			return &models.BotResponse{Type: "interaction", Response: v.AssistantContent}, nil
+		case *models.Post:
+			return &models.BotResponse{Type: "post", Response: v}, nil
+		default:
+			return nil, errors.New("unsupported function return type")
+		}
+	}
 }
+

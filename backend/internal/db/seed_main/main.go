@@ -9,7 +9,7 @@ import (
 	"github.com/AlexBetita/go_prac/internal/db"
 	"github.com/AlexBetita/go_prac/internal/db/seed"
 	"github.com/joho/godotenv"
-	openai "github.com/sashabaranov/go-openai"
+	openai "github.com/openai/openai-go"
 )
 
 func main() {
@@ -24,12 +24,12 @@ func main() {
 	defer client.Disconnect(ctx)
 
 	db := client.Database(cfg.DBName)
-	openaiClient := openai.NewClient(cfg.OpenAIKey)
+	openaiClient := openai.NewClient()
 
 	switch os.Getenv("SEED_MODE") {
 	case "embed":
 		log.Println("🔁 Running EmbedSeededPosts...")
-		if err := seed.EmbedSeededPosts(ctx, db, openaiClient); err != nil {
+		if err := seed.EmbedSeededPosts(ctx, db, &openaiClient); err != nil {
 			log.Fatal("❌ Embed failed:", err)
 		}
 	default:

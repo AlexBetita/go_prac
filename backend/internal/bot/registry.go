@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	openai "github.com/sashabaranov/go-openai"
+	openai "github.com/openai/openai-go"
 )
 
 type Handler func(ctx context.Context, args json.RawMessage) (any, error)

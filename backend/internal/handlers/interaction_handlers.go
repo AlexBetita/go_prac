@@ -30,6 +30,8 @@ func (h *InteractionHandler) StartOrAppend(w http.ResponseWriter, r *http.Reques
 	var req struct {
 		InteractionID *string           `json:"interaction_id,omitempty"`
 		Message       models.Message    `json:"message"`
+		Model         string            `json:"model"`
+		SystemPrompt  *string         	`json:"system_prompt,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -46,7 +48,13 @@ func (h *InteractionHandler) StartOrAppend(w http.ResponseWriter, r *http.Reques
 		oid = &tempID
 	}
 
-	interaction, err := h.service.StartOrAppendInteraction(r.Context(), user.ID, oid, &req.Message)
+	interaction, err := h.service.StartOrAppendInteraction(r.Context(), 
+		user.ID, 
+		oid, 
+		&req.Message,
+		req.Model,
+		req.SystemPrompt,
+	)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	openai "github.com/sashabaranov/go-openai"
+	openai "github.com/openai/openai-go"
 )
 
 type RelatedPostsPayload struct {
@@ -51,12 +51,12 @@ func relatedPostsHandler(ctx context.Context, raw json.RawMessage) (any, error) 
 	client := Client(ctx)
 	repo := Repo(ctx)
 
-	embedding, err := EmbedText(ctx, client, p.PostContent)
+	embeddingResponse, err := EmbedText(ctx, client, p.PostContent)
 	if err != nil {
 		return nil, fmt.Errorf("embedding failed: %w", err)
 	}
 
-	posts, err := repo.VectorSearch(ctx, embedding, int64(p.Count))
+	posts, err := repo.VectorSearch(ctx, embeddingResponse.Data[0].Embedding, int64(p.Count))
 	if err != nil {
 		return nil, fmt.Errorf("vector search failed: %w", err)
 	}

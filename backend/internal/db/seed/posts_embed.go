@@ -5,7 +5,7 @@ import (
 	"log"
 
 	"github.com/AlexBetita/go_prac/internal/bot"
-	openai "github.com/sashabaranov/go-openai"
+	openai "github.com/openai/openai-go"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )

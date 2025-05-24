@@ -15,7 +15,7 @@ type PostRepository interface {
 	Create(ctx context.Context, p *models.Post) error
 	FindByID(ctx context.Context, id primitive.ObjectID) (*models.Post, error)
 	Search(ctx context.Context, query string, limit int64) ([]*models.Post, error)
-	VectorSearch(ctx context.Context, vector []float32, limit int64) ([]*models.Post, error)
+	VectorSearch(ctx context.Context, vector []float64, limit int64) ([]*models.Post, error)
     FindBySlug(ctx context.Context, slug string) (*models.Post, error)
 }
 
@@ -74,7 +74,7 @@ func (r *mongoPostRepository) Search(ctx context.Context, query string, limit in
     return r.aggregate(ctx, pipeline)
 }
 
-func (r *mongoPostRepository) VectorSearch(ctx context.Context, vector []float32, limit int64) ([]*models.Post, error) {
+func (r *mongoPostRepository) VectorSearch(ctx context.Context, vector []float64, limit int64) ([]*models.Post, error) {
     pipeline := mongo.Pipeline{
         bson.D{{
             Key: "$vectorSearch",

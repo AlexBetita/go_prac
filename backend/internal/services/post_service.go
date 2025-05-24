@@ -7,7 +7,7 @@ import (
 	"github.com/AlexBetita/go_prac/internal/bot"
 	"github.com/AlexBetita/go_prac/internal/models"
 	"github.com/AlexBetita/go_prac/internal/repositories"
-	openai "github.com/sashabaranov/go-openai"
+	openai "github.com/openai/openai-go"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -52,5 +52,5 @@ func (s *postService) SearchPostsByVector(ctx context.Context, q string, limit i
 	if err != nil {
 		return nil, err
 	}
-	return s.repo.VectorSearch(ctx, vec, limit)
+	return s.repo.VectorSearch(ctx, vec.Data[0].Embedding, limit)
 }

@@ -13,7 +13,7 @@ import (
 	"github.com/AlexBetita/go_prac/internal/db"
 	"github.com/AlexBetita/go_prac/internal/routes"
 	"github.com/joho/godotenv"
-	"github.com/sashabaranov/go-openai"
+	"github.com/openai/openai-go"
 )
 
 func main() {
@@ -23,11 +23,11 @@ func main() {
 
     cfg := config.New()
 
-    oaClient := openai.NewClient(cfg.OpenAIKey)
+    oaClient := openai.NewClient()
     mongoClient := db.Connect(cfg)
     defer mongoClient.Disconnect(context.Background())
 
-    routeHandler := routes.NewRouter(cfg, mongoClient, oaClient)
+    routeHandler := routes.NewRouter(cfg, mongoClient, &oaClient)
 
     srv := &http.Server{
         Addr:         ":" + cfg.ServerPort,

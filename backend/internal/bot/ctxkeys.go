@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/AlexBetita/go_prac/internal/repositories"
-	openai "github.com/sashabaranov/go-openai"
+	openai "github.com/openai/openai-go"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 

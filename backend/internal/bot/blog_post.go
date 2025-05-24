@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/AlexBetita/go_prac/internal/models"
-	openai "github.com/sashabaranov/go-openai"
+	openai "github.com/openai/openai-go"
 )
 
 type BlogPostPayload struct {
@@ -95,7 +95,7 @@ func blogPostHandler(ctx context.Context, raw json.RawMessage) (any, error) {
 		if err != nil {
 			return nil, err
 		}
-		post.Embeddings = embedding
+		post.Embeddings = embedding.Data[0].Embedding
 	}
 
 	if err := Repo(ctx).Create(ctx, post); err != nil {

@@ -13,3 +13,10 @@ type Message struct {
 	CreatedAt                 int64                  `bson:"created_at" json:"created_at"`
 	UpdatedAt                 int64                  `bson:"updated_at" json:"updated_at"`
 }
+
+type Attachment struct {
+    Name    string `json:"name"`
+    URL     string `json:"url"`
+    Type    string `json:"type"`
+    IsImage bool   `json:"is_image"`
+}

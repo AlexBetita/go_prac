@@ -16,7 +16,7 @@ import (
 	"github.com/AlexBetita/go_prac/internal/models"
 	"github.com/AlexBetita/go_prac/internal/routes"
 	"github.com/AlexBetita/go_prac/internal/services"
-	"github.com/sashabaranov/go-openai"
+	"github.com/openai/openai-go"
 	"github.com/stretchr/testify/assert"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -54,7 +54,7 @@ func (m *mockPostRepo) Search(ctx context.Context, query string, limit int64) ([
 	return []*models.Post{}, nil
 }
 
-func (m *mockPostRepo) VectorSearch(ctx context.Context, vector []float32, limit int64) ([]*models.Post, error) {
+func (m *mockPostRepo) VectorSearch(ctx context.Context, vector []float64, limit int64) ([]*models.Post, error) {
 	return []*models.Post{}, nil
 }
 
@@ -123,12 +123,10 @@ func setupIntegrationServer(t *testing.T) *httptest.Server {
 
 	mongoURI := os.Getenv("MONGO_URI")
 	dbName := os.Getenv("DB_NAME")
-	oaKey := os.Getenv("OPENAI_API_KEY")
 
 	cfg := &config.Config{
 		MongoURI:  mongoURI,
 		DBName:    dbName,
-		OpenAIKey: oaKey,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -139,8 +137,8 @@ func setupIntegrationServer(t *testing.T) *httptest.Server {
 		t.Fatalf("mongo.Connect failed: %v", err)
 	}
 
-	oaClient := openai.NewClient(oaKey)
-	handler := routes.NewRouter(cfg, client, oaClient)
+	oaClient := openai.NewClient()
+	handler := routes.NewRouter(cfg, client, &oaClient)
 	return httptest.NewServer(handler)
 }
 
