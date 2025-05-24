@@ -9,6 +9,7 @@ import (
 	"github.com/AlexBetita/go_prac/internal/middlewares"
 	"github.com/AlexBetita/go_prac/internal/models"
 	"github.com/AlexBetita/go_prac/internal/services"
+	"github.com/openai/openai-go"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -37,7 +38,6 @@ func (h *BotHandler) Chat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var message string
-	var stream bool
 	var attachments []models.Attachment
 
 	var interactionOID *primitive.ObjectID
@@ -58,7 +58,6 @@ func (h *BotHandler) Chat(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		message = body.Message
-		stream = body.Stream
 
 		if body.InteractionID != nil {
 			oid, err := primitive.ObjectIDFromHex(*body.InteractionID)
@@ -152,7 +151,7 @@ func (h *BotHandler) Chat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Call your BotService.GenerateRequest with parsed interactionID and systemPrompt
-	resp, err := h.service.GenerateRequest(r.Context(), user.ID, interactionOID, fullMessage, systemPrompt, stream)
+	resp, err := h.service.GenerateRequest(r.Context(), user.ID, interactionOID, fullMessage, systemPrompt)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -161,4 +160,80 @@ func (h *BotHandler) Chat(w http.ResponseWriter, r *http.Request) {
 	// Return JSON response
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
+}
+
+func (h *BotHandler) ChatStream(w http.ResponseWriter, r *http.Request) {
+	user := middlewares.User(r.Context())
+	if user == nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var body struct {
+		Message       string  `json:"message"`
+		InteractionID *string `json:"interaction_id,omitempty"`
+		SystemPrompt  *string `json:"system_prompt,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || strings.TrimSpace(body.Message) == "" {
+		http.Error(w, "message required", http.StatusBadRequest)
+		return
+	}
+
+	var interactionOID *primitive.ObjectID
+	if body.InteractionID != nil {
+		oid, err := primitive.ObjectIDFromHex(*body.InteractionID)
+		if err != nil {
+			http.Error(w, "invalid interaction_id", http.StatusBadRequest)
+			return
+		}
+		interactionOID = &oid
+	}
+
+	// Set SSE headers
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+		return
+	}
+
+	stream := h.service.GenerateRequestStream(r.Context(), user.ID, interactionOID, body.Message, body.SystemPrompt)
+	defer stream.Close()
+
+	acc := openai.ChatCompletionAccumulator{}
+
+	for stream.Next() {
+		chunk := stream.Current()
+		acc.AddChunk(chunk)
+
+		if len(chunk.Choices) > 0 {
+			text := chunk.Choices[0].Delta.Content
+			if len(text) > 0 {
+				fmt.Fprintf(w, "event: chunk\ndata: %s\n\n", escapeSSE(text))
+				flusher.Flush()
+			}
+		}
+		// You can optionally check for JustFinishedToolCall and handle it here if you want
+	}
+
+	if err := stream.Err(); err != nil {
+		fmt.Fprintf(w, "event: error\ndata: %s\n\n", escapeSSE(err.Error()))
+		flusher.Flush()
+		return
+	}
+
+	// Send done event with final content
+	finalContent, _ := acc.JustFinishedContent()
+	finalJSON, _ := json.Marshal(map[string]string{"final": finalContent})
+	fmt.Fprintf(w, "event: done\ndata: %s\n\n", finalJSON)
+	flusher.Flush()
+}
+
+// escapeSSE escapes newlines per SSE spec
+func escapeSSE(data string) string {
+	return strings.ReplaceAll(data, "\n", "\\n")
 }

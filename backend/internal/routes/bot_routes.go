@@ -15,5 +15,6 @@ func MountBotRoutes(
 	r.Route("/bot", func(pr chi.Router) {
 		pr.Use(authMW)
 		pr.Post("/chat", botH.Chat)
+		pr.Post("/chat/stream", botH.ChatStream)
 	})
 }

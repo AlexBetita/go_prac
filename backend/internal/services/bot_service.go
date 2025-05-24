@@ -11,6 +11,7 @@ import (
 	"github.com/AlexBetita/go_prac/internal/models"
 	"github.com/AlexBetita/go_prac/internal/repositories"
 	openai "github.com/openai/openai-go"
+	"github.com/openai/openai-go/packages/ssestream"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -36,7 +37,6 @@ func (s *BotService) GenerateRequest(
 	interactionID *primitive.ObjectID,
 	message string,
 	systemPrompt *string,
-	stream bool,
 ) (*models.BotResponse, error) {
 	
 	model := os.Getenv("OPENAI_MODEL")
@@ -72,161 +72,6 @@ func (s *BotService) GenerateRequest(
 	messages := []openai.ChatCompletionMessageParamUnion{
 		openai.SystemMessage(prompt),
 		openai.UserMessage(message),
-	}
-
-	// If streaming requested
-	if stream {
-		stream := s.oaClient.Chat.Completions.NewStreaming(ctx, openai.ChatCompletionNewParams{
-			Model:    model,
-			Messages: messages,
-			Tools:    tools,
-			Seed:     openai.Int(0),
-		})
-
-		acc := openai.ChatCompletionAccumulator{}
-		var finalContent string
-		var finalToolCall openai.FinishedChatCompletionToolCall
-		var haveFinalToolCall bool
-
-		for stream.Next() {
-			chunk := stream.Current()
-			acc.AddChunk(chunk)
-
-			if content, ok := acc.JustFinishedContent(); ok {
-				finalContent = content
-			}
-			if toolCall, ok := acc.JustFinishedToolCall(); ok {
-				finalToolCall = toolCall
-				haveFinalToolCall = true
-				break
-			}
-
-			// Here you can optionally send partial chunk.Choices[0].Delta.Content to client via websockets or SSE
-		}
-
-		if err := stream.Err(); err != nil {
-			return nil, err
-		}
-
-		// If no tool call was detected, just save finalContent and return
-		if !haveFinalToolCall  {
-			messageModel := &models.Message{
-				UserID:           userID,
-				UserContent:      message,
-				AssistantContent: finalContent,
-			}
-
-			if _, err := s.iaSvc.StartOrAppendInteraction(ctx,
-				userID,
-				interactionID,
-				messageModel,
-				model,
-				&prompt,
-			); err != nil {
-				return nil, err
-			}
-
-			return &models.BotResponse{
-				Type:     "interaction",
-				Response: finalContent,
-			}, nil
-		}
-
-		// Handle tool call similar to non-streaming branch
-		spec, ok := bot.Registry[finalToolCall.Name]
-		if !ok {
-			return nil, fmt.Errorf("unknown function: %s", finalToolCall.Name)
-		}
-
-		var args json.RawMessage = []byte(finalToolCall.Arguments)
-		out, err := spec.Handle(ctx, args)
-		if err != nil {
-			return nil, err
-		}
-
-		switch finalToolCall.Name {
-		case "get_related_posts":
-			payloadBytes, ok := out.([]byte)
-			if !ok {
-				return nil, errors.New("expected []byte output from get_related_posts handler")
-			}
-			payloadStr := string(payloadBytes)
-
-			relatedPostsSystemMsg := openai.SystemMessage(`You just fetched related blog post data.
-
-			Please format it as follows:
-
-			1. Keep only these fields: slug, title, views, created_by.
-			2. Start with a short, friendly intro (e.g. “Hey there! I found some posts you might like…”).
-			3. Use **clean, well-formatted Markdown tables**. One table for relevant posts, another for not relevant.
-			4. Use meaningful section headings like "### 🚀 Programming Posts" and "### 🌴 Other Interesting Reads".
-			5. Keep the tone conversational but concise. Add a few light emojis for charm, but don’t overdo it.
-			6. Keep spacing and formatting neat for maximum clarity.
-			7. No explanations or bullet lists — only the intro and two tables.
-
-			Thanks!`)
-
-			messages = append(messages,
-				acc.Choices[0].Message.ToParam(),          // assistant message with tool call
-				openai.ToolMessage(payloadStr, finalToolCall.ID), // immediately respond with tool message
-				relatedPostsSystemMsg,                      // then system message with formatting instructions
-				openai.UserMessage(message),               // then user message (your original prompt)
-			)
-
-			finalResp, err := s.oaClient.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
-				Model:    model,
-				Messages: messages,
-			})
-			if err != nil {
-				return nil, err
-			}
-			if len(finalResp.Choices) == 0 {
-				return nil, errors.New("no choices returned on follow-up")
-			}
-
-			finalMsg := finalResp.Choices[0].Message.Content
-
-			messageModel := &models.Message{
-				UserID:           userID,
-				UserContent:      message,
-				AssistantContent: finalMsg,
-			}
-			if _, err := s.iaSvc.StartOrAppendInteraction(ctx,
-				userID,
-				interactionID,
-				messageModel,
-				model,
-				&prompt,
-			); err != nil {
-				return nil, err
-			}
-
-			return &models.BotResponse{
-				Type:     "related_posts",
-				Response: finalMsg,
-			}, nil
-
-		default:
-			switch v := out.(type) {
-			case string:
-				return &models.BotResponse{Type: "string", Response: v}, nil
-			case *models.Message:
-				if _, err := s.iaSvc.StartOrAppendInteraction(ctx,
-					userID,
-					interactionID,
-					v,
-					model,
-					&prompt,
-				); err != nil {
-					return nil, err
-				}
-				return &models.BotResponse{Type: "interaction", Response: v.AssistantContent}, nil
-			case *models.Post:
-				return &models.BotResponse{Type: "post", Response: v}, nil
-			default:
-				return nil, errors.New("unsupported function return type")
-			}
-		}
 	}
 
 	// Prepare first chat request params
@@ -376,3 +221,53 @@ func (s *BotService) GenerateRequest(
 	}
 }
 
+func (s *BotService) GenerateRequestStream(
+	ctx context.Context,
+	userID primitive.ObjectID,
+	interactionID *primitive.ObjectID,
+	message string,
+	systemPrompt *string,
+) (stream *ssestream.Stream[openai.ChatCompletionChunk]) {
+
+	model := os.Getenv("OPENAI_MODEL")
+	if model == "" {
+		model = openai.ChatModelGPT4o
+	}
+
+	var prompt string
+	if systemPrompt != nil {
+		prompt = *systemPrompt
+	} else {
+		prompt = "You are pretty good at whatever you are requested to do."
+	}
+
+	ctx = context.WithValue(ctx, bot.CtxUserID, userID)
+	ctx = context.WithValue(ctx, bot.CtxInput, message)
+	ctx = context.WithValue(ctx, bot.CtxRepo, s.pRepo)
+	ctx = context.WithValue(ctx, bot.CtxClient, s.oaClient)
+
+	tools := make([]openai.ChatCompletionToolParam, 0, len(bot.Registry))
+	for _, spec := range bot.Registry {
+		tools = append(tools, openai.ChatCompletionToolParam{
+			Function: openai.FunctionDefinitionParam{
+				Name:        spec.Definition.Name,
+				Description: openai.String(spec.Definition.Description),
+				Parameters:  spec.Definition.Parameters,
+			},
+		})
+	}
+
+	messages := []openai.ChatCompletionMessageParamUnion{
+		openai.SystemMessage(prompt),
+		openai.UserMessage(message),
+	}
+
+	stream = s.oaClient.Chat.Completions.NewStreaming(ctx, openai.ChatCompletionNewParams{
+		Model:    model,
+		Messages: messages,
+		Tools:    tools,
+		Seed:     openai.Int(0),
+	})
+
+	return stream
+}
