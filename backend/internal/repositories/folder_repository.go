@@ -19,6 +19,7 @@ type FolderRepository interface {
 	Delete(ctx context.Context, id primitive.ObjectID) error
 	FindManyPaginated(ctx context.Context, filter bson.M, limit, skip int) ([]*models.Folder, int64, error)
 	FindFavoritesByUser(ctx context.Context, userID primitive.ObjectID) ([]*models.Folder, error)
+	FindFavoritePaginated(ctx context.Context, userID primitive.ObjectID, limit, skip int) ([]*models.Folder, int64, error)
 }
 
 type mongoFolderRepo struct {
@@ -119,4 +120,31 @@ func (r *mongoFolderRepo) FindFavoritesByUser(ctx context.Context, userID primit
 		folders = append(folders, &folder)
 	}
 	return folders, nil
+}
+
+func (r *mongoFolderRepo) FindFavoritePaginated(ctx context.Context, userID primitive.ObjectID, limit, skip int) ([]*models.Folder, int64, error) {
+	filter := bson.M{"created_by": userID, "favorite": true}
+	opts := options.Find().SetLimit(int64(limit)).SetSkip(int64(skip)).SetSort(bson.M{"created_at": -1})
+
+	cursor, err := r.coll.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer cursor.Close(ctx)
+
+	var folders []*models.Folder
+	for cursor.Next(ctx) {
+		var folder models.Folder
+		if err := cursor.Decode(&folder); err != nil {
+			return nil, 0, err
+		}
+		folders = append(folders, &folder)
+	}
+
+	total, err := r.coll.CountDocuments(ctx, filter)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return folders, total, nil
 }

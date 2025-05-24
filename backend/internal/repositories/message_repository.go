@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"time"
 
 	"github.com/AlexBetita/go_prac/internal/models"
 	"go.mongodb.org/mongo-driver/bson"
@@ -25,6 +26,8 @@ func NewMessageRepository(db *mongo.Database) MessageRepository {
 
 func (r *mongoMessageRepository) Create(ctx context.Context, message *models.Message) error {
 	message.ID = primitive.NewObjectID()
+	message.CreatedAt = time.Now().Unix()
+	message.UpdatedAt = message.CreatedAt
 	_, err := r.coll.InsertOne(ctx, message)
 	return err
 }

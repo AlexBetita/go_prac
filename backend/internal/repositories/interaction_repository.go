@@ -12,6 +12,8 @@ import (
 
 type InteractionRepository interface {
 	Create(ctx context.Context, p *models.Interaction) error
+	GetByID(ctx context.Context, id primitive.ObjectID) (*models.Interaction, error)
+	Update(ctx context.Context, id primitive.ObjectID, update bson.M) error
 	DeleteByFolderID(ctx context.Context, folderID primitive.ObjectID) error
 	FindByFolderID(ctx context.Context, folderID primitive.ObjectID) ([]primitive.ObjectID, error)
 }
@@ -33,6 +35,18 @@ func (r *mongoInteractionRepository) Create(ctx context.Context, p *models.Inter
 		p.ID = oid
 	}
 	return nil
+}
+
+func (r *mongoInteractionRepository) GetByID(ctx context.Context, id primitive.ObjectID) (*models.Interaction, error) {
+	var i models.Interaction
+	err := r.coll.FindOne(ctx, bson.M{"_id": id}).Decode(&i)
+	return &i, err
+}
+
+func (r *mongoInteractionRepository) Update(ctx context.Context, id primitive.ObjectID, update bson.M) error {
+	update["updated_at"] = time.Now().Unix()
+	_, err := r.coll.UpdateByID(ctx, id, bson.M{"$set": update})
+	return err
 }
 
 func (r *mongoInteractionRepository) DeleteByFolderID(ctx context.Context, folderID primitive.ObjectID) error {

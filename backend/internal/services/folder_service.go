@@ -82,3 +82,7 @@ func (s *FolderService) ToggleFavorite(ctx context.Context, id primitive.ObjectI
 func (s *FolderService) GetFavoriteFolders(ctx context.Context, userID primitive.ObjectID) ([]*models.Folder, error) {
 	return s.repo.FindFavoritesByUser(ctx, userID)
 }
+
+func (s *FolderService) GetFavoriteFoldersPaginated(ctx context.Context, userID primitive.ObjectID, limit, skip int) ([]*models.Folder, int64, error) {
+	return s.repo.FindFavoritePaginated(ctx, userID, limit, skip)
+}

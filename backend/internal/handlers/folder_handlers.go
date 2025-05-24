@@ -171,17 +171,17 @@ func (h *FolderHandler) DeleteAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// delete all interactions that belong to this folder
+	if err := h.service.DeleteInteractionsByFolder(r.Context(), folderID); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	// delete folder
 	if err := h.service.DeleteFolder(r.Context(), folderID); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// delete all interactions that belong to this folder
-	if err := h.service.DeleteInteractionsByFolder(r.Context(), folderID); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -223,13 +223,30 @@ func (h *FolderHandler) GetFavorites(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	folders, err := h.service.GetFavoriteFolders(r.Context(), user.ID)
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	if limit <= 0 {
+		limit = 10
+	}
+	if page <= 0 {
+		page = 1
+	}
+	skip := (page - 1) * limit
+
+	folders, total, err := h.service.GetFavoriteFoldersPaginated(r.Context(), user.ID, limit, skip)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(folders)
+	json.NewEncoder(w).Encode(map[string]any{
+		"folders":     folders,
+		"total":       total,
+		"page":        page,
+		"limit":       limit,
+		"total_pages": int(math.Ceil(float64(total) / float64(limit))),
+	})
 }
+
 

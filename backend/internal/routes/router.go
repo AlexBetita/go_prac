@@ -28,12 +28,16 @@ func NewRouter(cfg *config.Config, mongoClient *mongo.Client, oaClient *openai.C
 	authSvc  := services.NewAuthService(userRepo, cfg.JWTSecret)
 	botSvc   := services.NewBotService(postRepo, interactionRepo, oaClient)
 	postSvc := services.NewPostService(postRepo, oaClient)
+	interactionSvc := services.NewInteractionService(interactionRepo, messageRepo)
 	folderSvc := services.NewFolderService(folderRepo, interactionRepo, messageRepo)
+	messageSvc := services.NewMessageService(messageRepo)
 
 	autH  := handlers.NewAuthHandler(authSvc)
 	botH := handlers.NewBotHandler(botSvc)
 	postH := handlers.NewPostHandler(postSvc)
+	interactionH := handlers.NewInteractionHandler(interactionSvc)
 	folderH := handlers.NewFolderHandler(folderSvc)
+	messageH := handlers.NewMessageHandler(messageSvc)
 
 	authMW := middlewares.Auth(cfg.JWTSecret, authSvc)
 
@@ -41,7 +45,9 @@ func NewRouter(cfg *config.Config, mongoClient *mongo.Client, oaClient *openai.C
 		MountAuthRoutes(api, cfg, autH, userRepo, authMW)
 		MountBotRoutes(api, botH, authMW)
 		MountPostRoutes(api, postH)
+		MountInteractionRoutes(api, interactionH, authMW)
 		MountFolderRoutes(api, folderH, authMW)
+		MountMessageRoutes(api, messageH, authMW)
 	})
 
 	return r
