@@ -206,6 +206,8 @@ func (h *BotHandler) ChatStream(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var prompt string
+	var payloadStr string
+
 	if body.SystemPrompt != nil {
 		prompt = *body.SystemPrompt
 	} else {
@@ -271,8 +273,8 @@ func (h *BotHandler) ChatStream(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 
-				payloadStr := string(payloadBytes)
-				relatedPostsSystemMsg := openai.SystemMessage(`You just fetched related blog post data.
+				payloadStr = string(payloadBytes)
+				prompt = `You just fetched related blog post data.
 
 				Please format it as follows:
 
@@ -284,42 +286,8 @@ func (h *BotHandler) ChatStream(w http.ResponseWriter, r *http.Request) {
 				6. Keep spacing and formatting neat for maximum clarity.
 				7. No explanations or bullet lists — only the intro and two tables.
 
-				Thanks!`)
+				Thanks!`
 
-				followupMessages := []openai.ChatCompletionMessageParamUnion{
-					acc.Choices[0].Message.ToParam(),
-					openai.ToolMessage(payloadStr, acc.Choices[0].Message.ToolCalls[0].ID),
-					relatedPostsSystemMsg,
-					openai.UserMessage(body.Message),
-				}
-
-				followupStream := h.service.GenerateRequestStream(
-					r.Context(), user.ID, interactionOID,
-					followupMessages,
-					nil,
-				)
-
-				followupAcc := openai.ChatCompletionAccumulator{}
-
-				for followupStream.Next() {
-					followupChunk := followupStream.Current()
-					followupAcc.AddChunk(followupChunk)
-					if len(followupChunk.Choices) > 0 {
-						text := followupChunk.Choices[0].Delta.Content
-						if len(text) > 0 {
-							fmt.Fprintf(w, "event: followup_chunk\ndata: %s\n\n", escapeSSE(text))
-							flusher.Flush()
-						}
-					}
-				}
-
-				if err := followupStream.Err(); err != nil {
-					fmt.Fprintf(w, "event: error\ndata: %s\n\n", escapeSSE(err.Error()))
-					flusher.Flush()
-					return
-				}
-				finalContent, _ := followupAcc.JustFinishedContent()
-				toolStrOutput = string(finalContent)
 			} else {
 				spec, found := bot.Registry[tool.Name]
 				if !found {
@@ -337,9 +305,9 @@ func (h *BotHandler) ChatStream(w http.ResponseWriter, r *http.Request) {
 
 				switch v := out.(type) {
 				case []byte:
-					toolStrOutput = string(v)
+					payloadStr = string(v)
 				case string:
-					toolStrOutput = v
+					payloadStr = v
 				default:
 					// Try to marshal to JSON if it's a struct or something else
 					b, err := json.Marshal(v)
@@ -347,10 +315,46 @@ func (h *BotHandler) ChatStream(w http.ResponseWriter, r *http.Request) {
 						http.Error(w, "failed to marshal tool output", http.StatusInternalServerError)
 						return
 					}
-					toolStrOutput = string(b)
+					payloadStr = string(b)
 				}
 
 			}
+
+			followupMessages := []openai.ChatCompletionMessageParamUnion{
+				acc.Choices[0].Message.ToParam(),
+				openai.ToolMessage(payloadStr, acc.Choices[0].Message.ToolCalls[0].ID),
+				openai.SystemMessage(prompt),
+				openai.UserMessage(body.Message),
+			}
+
+			followupStream := h.service.GenerateRequestStream(
+				r.Context(), user.ID, interactionOID,
+				followupMessages,
+				nil,
+			)
+
+			followupAcc := openai.ChatCompletionAccumulator{}
+
+			for followupStream.Next() {
+				followupChunk := followupStream.Current()
+				followupAcc.AddChunk(followupChunk)
+				if len(followupChunk.Choices) > 0 {
+					text := followupChunk.Choices[0].Delta.Content
+					if len(text) > 0 {
+						fmt.Fprintf(w, "event: followup_chunk\ndata: %s\n\n", escapeSSE(text))
+						flusher.Flush()
+					}
+				}
+			}
+
+			if err := followupStream.Err(); err != nil {
+				fmt.Fprintf(w, "event: error\ndata: %s\n\n", escapeSSE(err.Error()))
+				flusher.Flush()
+				return
+			}
+
+			finalContent, _ := followupAcc.JustFinishedContent()
+			toolStrOutput = string(finalContent)
 
 			payloadMap := map[string]interface{}{
 				"index": tool.Index,
