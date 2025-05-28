@@ -45,6 +45,7 @@ func (s *BotService) GenerateRequest(
 	interactionID *primitive.ObjectID,
 	message string,
 	systemPrompt *string,
+	plugins []string,
 ) (*models.BotResponse, error) {
 	
 	model := os.Getenv("OPENAI_MODEL")

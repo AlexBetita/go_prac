@@ -154,8 +154,7 @@ func (h *BotHandler) Chat(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Call your BotService.GenerateRequest with parsed interactionID and systemPrompt
-	resp, err := h.service.GenerateRequest(r.Context(), user.ID, interactionOID, fullMessage, systemPrompt)
+	resp, err := h.service.GenerateRequest(r.Context(), user.ID, interactionOID, fullMessage, systemPrompt, []string{""})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
