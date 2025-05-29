@@ -4,16 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	// "log"
 	"net/http"
-	"strconv"
+	// "strconv"
 	"strings"
 
 	"github.com/AlexBetita/go_prac/internal/bot"
 	"github.com/AlexBetita/go_prac/internal/middlewares"
 	"github.com/AlexBetita/go_prac/internal/models"
 	"github.com/AlexBetita/go_prac/internal/services"
-	"github.com/openai/openai-go"
+	// "github.com/openai/openai-go"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -198,204 +198,14 @@ func (h *BotHandler) ChatStream(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
-		return
-	}
 
-	var prompt string
-	var payloadStr string
-
-	if body.SystemPrompt != nil {
-		prompt = *body.SystemPrompt
-	} else {
-		prompt = `
-		Share a brief description of what you plan to do in 40 words.
-		You are pretty good at whatever you are requested to do. 
-		`
-	}
-
-	messages := []openai.ChatCompletionMessageParamUnion{
-		openai.SystemMessage(prompt),
-		openai.UserMessage(body.Message),
-	}
-
-	stream := h.service.GenerateRequestStream(r.Context(), user.ID, interactionOID, messages, 
+	
+	h.service.GenerateRequestStream(r.Context(), user.ID, interactionOID, body.Message,
+	body.SystemPrompt,
 	[]string{"get_related_posts", 
-	"create_blog_post"})
+	"create_blog_post"}, w)
 
-	acc := openai.ChatCompletionAccumulator{}
-
-	for stream.Next() {
-		chunk := stream.Current()
-		acc.AddChunk(chunk)
-
-		// When this fires, the current chunk value will not contain content data
-		if _, ok := acc.JustFinishedContent(); ok {
-			println()
-			println("finish-event: Content stream finished")
-		}
-
-		if refusal, ok := acc.JustFinishedRefusal(); ok {
-			println()
-			println("finish-event: refusal stream finished:", refusal)
-			println()
-		}
-
-		if tool, ok := acc.JustFinishedToolCall(); ok {
-			var toolStrOutput string
-			// Run the tool handler function to get output bytes
-			ctxWithValues := h.enrichContext(r.Context(), user.ID)
-
-			// Check if tool needs a follow up
-			if tool.Name == "get_related_posts" {
-				spec, found := bot.Registry[tool.Name]
-				if !found {
-					http.Error(w, "unknown tool", http.StatusInternalServerError)
-					return
-				}
-				
-				// Parse arguments JSON into raw message
-				args := json.RawMessage(tool.Arguments)
-				
-				out, err := spec.Handle(ctxWithValues, args)
-
-				if err != nil {
-					http.Error(w, fmt.Sprintf("tool handler error: %v", err), http.StatusInternalServerError)
-					return
-				}
-
-				payloadBytes, ok := out.([]byte)
-				if !ok {
-					http.Error(w, "invalid tool output type", http.StatusInternalServerError)
-					return
-				}
-
-				payloadStr = string(payloadBytes)
-				prompt = `You just fetched related blog post data.
-
-				Please format it as follows:
-
-				1. Keep only these fields: slug, title, views, created_by.
-				2. Start with a short, friendly intro (e.g. “Hey there! I found some posts you might like…”).
-				3. Use **clean, well-formatted Markdown tables**. One table for relevant posts, another for not relevant.
-				4. Use meaningful section headings like "### 🚀 Programming Posts" and "### 🌴 Other Interesting Reads".
-				5. Keep the tone conversational but concise. Add a few light emojis for charm, but don’t overdo it.
-				6. Keep spacing and formatting neat for maximum clarity.
-				7. No explanations or bullet lists — only the intro and two tables.
-
-				Thanks!`
-
-			} else {
-				spec, found := bot.Registry[tool.Name]
-				if !found {
-					http.Error(w, "unknown tool", http.StatusInternalServerError)
-					return
-				}
-				
-				// Parse arguments JSON into raw message
-				args := json.RawMessage(tool.Arguments)
-				out, err := spec.Handle(ctxWithValues, args)
-				if err != nil {
-					http.Error(w, fmt.Sprintf("tool handler error: %v", err), http.StatusInternalServerError)
-					return
-				}
-
-				switch v := out.(type) {
-				case []byte:
-					payloadStr = string(v)
-				case string:
-					payloadStr = v
-				default:
-					// Try to marshal to JSON if it's a struct or something else
-					b, err := json.Marshal(v)
-					if err != nil {
-						http.Error(w, "failed to marshal tool output", http.StatusInternalServerError)
-						return
-					}
-					payloadStr = string(b)
-				}
-
-			}
-
-			followupMessages := []openai.ChatCompletionMessageParamUnion{
-				acc.Choices[0].Message.ToParam(),
-				openai.ToolMessage(payloadStr, acc.Choices[0].Message.ToolCalls[0].ID),
-				openai.SystemMessage(prompt),
-				openai.UserMessage(body.Message),
-			}
-
-			followupStream := h.service.GenerateRequestStream(
-				r.Context(), user.ID, interactionOID,
-				followupMessages,
-				nil,
-			)
-
-			followupAcc := openai.ChatCompletionAccumulator{}
-
-			for followupStream.Next() {
-				followupChunk := followupStream.Current()
-				followupAcc.AddChunk(followupChunk)
-				if len(followupChunk.Choices) > 0 {
-					text := followupChunk.Choices[0].Delta.Content
-					if len(text) > 0 {
-						fmt.Fprintf(w, "event: followup_chunk\ndata: %s\n\n", escapeSSE(text))
-						flusher.Flush()
-					}
-				}
-			}
-
-			if err := followupStream.Err(); err != nil {
-				fmt.Fprintf(w, "event: error\ndata: %s\n\n", escapeSSE(err.Error()))
-				flusher.Flush()
-				return
-			}
-
-			finalContent, _ := followupAcc.JustFinishedContent()
-			toolStrOutput = string(finalContent)
-
-			payloadMap := map[string]interface{}{
-				"index": tool.Index,
-				"name": tool.Name,
-				"arguments": json.RawMessage(tool.Arguments),
-				"content": toolStrOutput,
-			}
-			payloadBytes, _ := json.Marshal(payloadMap)
-			if _, err := fmt.Fprintf(w, "event: tool_call\ndata: %s\n\n", escapeSSE(string(payloadBytes))); err != nil {
-				log.Println("write error:", err)
-				return
-			}
-			flusher.Flush()
-		}
-
-		if len(chunk.Choices) > 0 {
-			text := chunk.Choices[0].Delta.Content
-			if len(text) > 0 {
-				fmt.Fprintf(w, "event: chunk\ndata: %s\n\n", escapeSSE(text))
-				flusher.Flush()
-			}
-		}
-		
-	}
-
-	if err := stream.Err(); err != nil {
-		fmt.Fprintf(w, "event: error\ndata: %s\n\n", escapeSSE(err.Error()))
-		flusher.Flush()
-		return
-	}
-
-	if acc.Usage.TotalTokens > 0 {
-		tokenInt := acc.Usage.TotalTokens
-		tokenStr := strconv.FormatInt(tokenInt, 10)
-		fmt.Fprintf(w, "event: metadata\ndata: %s\n\n", escapeSSE(tokenStr))
-	}
-
-	// Send done event with final content
-	finalContent, _ := acc.JustFinishedContent()
-	finalJSON, _ := json.Marshal(map[string]string{"final": finalContent})
-	fmt.Fprintf(w, "event: done\ndata: %s\n\n", finalJSON)
-	flusher.Flush()
+	
 }
 
 // escapeSSE escapes newlines per SSE spec
